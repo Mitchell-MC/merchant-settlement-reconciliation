@@ -38,6 +38,8 @@ Runs on Databricks (Unity Catalog, AWS). Infrastructure is Terraform-managed; tr
 | [charter/](charter/) | Business framing, stakeholder map, scope, interview narratives |
 | [docs/](docs/) | KPI contract, non-functional targets, source ingestion contracts, glossary, RBAC/access matrix |
 | [data_generation/](data_generation/) | Deterministic synthetic operational data generator |
+| [ingestion/](ingestion/) | FRPS/CBP/CPI macro reference data ingestion scripts |
+| [common/](common/) | Shared Bronze lineage/landing helpers used by both `data_generation/` and `ingestion/` |
 | [transform/](transform/) | dbt-databricks project — Bronze/Silver/Gold models, tests, reconciliation logic |
 | [infra/](infra/) | Terraform — Databricks workspace, Unity Catalog, compute, jobs |
 | [orchestration/](orchestration/) | Databricks Jobs / workflow definitions |

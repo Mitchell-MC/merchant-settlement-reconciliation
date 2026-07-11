@@ -9,25 +9,21 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from bank_postings import generate_bank_postings
+from common.lineage import add_lineage, write_landed_parquet
 from config import GenerationConfig
-from lineage import add_lineage
 from merchants import generate_merchants
 from settlement import generate_settlement_batches
 from transactions import generate_transactions
-
-
-def _write_parquet(df: pd.DataFrame, output_dir: str, table_name: str) -> str:
-    table_dir = os.path.join(output_dir, table_name)
-    os.makedirs(table_dir, exist_ok=True)
-    path = os.path.join(table_dir, f"{table_name}.parquet")
-    df.to_parquet(path, index=False)
-    return path
 
 
 def main(config: GenerationConfig | None = None) -> None:
@@ -62,7 +58,7 @@ def main(config: GenerationConfig | None = None) -> None:
     summary = []
     for name, df in tables.items():
         landed = add_lineage(df, config.source_system, run_id)
-        path = _write_parquet(landed, config.output_dir, name)
+        path = write_landed_parquet(landed, config.output_dir, name)
         summary.append((name, len(landed), path))
 
     gt_path = os.path.join(config.ground_truth_dir, "ground_truth_breaks.parquet")

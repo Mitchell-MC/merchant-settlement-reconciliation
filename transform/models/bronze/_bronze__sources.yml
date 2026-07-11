@@ -130,10 +130,56 @@ sources:
           - name: bank_reference
 
       - name: frps_payment_volumes
-        description: Federal Reserve Payments Study top-line volume/value by payment type (see docs/source_contracts/frps.md).
+        description: >
+          Federal Reserve Payments Study top-line volume/value by payment
+          type (see docs/source_contracts/frps.md). Grain: (row_number,
+          collection_year) -- payment_type_label repeats across the
+          hierarchy, so row_number (not the label) is the real key.
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [row_number, collection_year]
+        columns:
+          - name: row_number
+            tests: [not_null]
+          - name: collection_year
+            tests:
+              - not_null
+              - accepted_values:
+                  values: [2015, 2018, 2021, 2024]
+          - name: category_path
 
       - name: cbp_establishments
-        description: County Business Patterns establishment counts by geography/industry/employer-size (see docs/source_contracts/cbp.md).
+        description: >
+          County Business Patterns establishment counts by geography/2-digit
+          NAICS sector/employer-size (see docs/source_contracts/cbp.md).
+          Grain: (state_fips, county_fips, naics_code).
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [state_fips, county_fips, naics_code]
+        columns:
+          - name: state_fips
+            tests: [not_null]
+          - name: county_fips
+            tests: [not_null]
+          - name: naics_code
+            tests: [not_null]
 
       - name: cpi_monthly
-        description: BLS Consumer Price Index monthly series (see docs/source_contracts/cpi.md).
+        description: >
+          BLS Consumer Price Index monthly series, CPI-U all items, NSA and
+          SA (see docs/source_contracts/cpi.md). Grain: (series_id, year, period).
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [series_id, year, period]
+        columns:
+          - name: series_id
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['CUUR0000SA0', 'CUSR0000SA0']
+          - name: year
+            tests: [not_null]
+          - name: period
+            tests: [not_null]
+          - name: value
+            tests: [not_null]

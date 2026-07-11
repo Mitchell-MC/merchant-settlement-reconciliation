@@ -33,6 +33,7 @@ databricks.cfg
 # Data (synthetic outputs, downloaded reference data — all regenerable, don't commit)
 data/
 !data/.gitkeep
+ingestion/_downloads/
 
 # venv
 .venv/
