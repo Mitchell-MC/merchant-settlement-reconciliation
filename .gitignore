@@ -13,9 +13,8 @@ transform/logs/
 transform/.user.yml
 transform/profiles.yml
 
-# Terraform
+# Terraform (.terraform.lock.hcl IS committed -- standard practice for reproducible provider versions)
 infra/**/.terraform/
-infra/**/.terraform.lock.hcl
 infra/**/*.tfstate
 infra/**/*.tfstate.backup
 infra/**/*.tfplan

@@ -51,6 +51,8 @@ GRANT SELECT ON VIEW merchant_recon_project.gold.vw_exception_queue_masked TO `r
 
 Schema-level `SELECT` grants (e.g. on `silver`) cascade to all current and future tables in that schema — a new Silver model doesn't need a manual grant added.
 
-## Known governance gap (found during verification, not fixed)
+## Governance gap found during verification -- fixed by adopting Terraform
 
-`SHOW GRANTS ON CATALOG merchant_recon_project` also lists an auto-created group `_workspace_users_merchant_recon_project_<id>` with blanket `USE CATALOG`, generated automatically when the catalog was created via Express workspace setup. This grants every workspace user baseline catalog visibility, which bypasses the tiered model above at the `USE CATALOG` level (object-level grants below it still apply correctly). A production hardening pass would revoke this default and rely solely on the 4 named groups — left as-is here and documented rather than silently fixed, since it's a real, common "secure by default isn't actually secure" finding worth calling out, not something to quietly paper over.
+`SHOW GRANTS ON CATALOG merchant_recon_project` originally also listed an auto-created group `_workspace_users_merchant_recon_project_<id>` with blanket `USE CATALOG`, generated automatically when the catalog was created via Express workspace setup — every workspace user had baseline catalog visibility, bypassing the tiered model above at the `USE CATALOG` level.
+
+This was fixed as a *side effect*, not a targeted patch: `databricks_grants` in Terraform (see [infra/grants.tf](../infra/grants.tf)) is authoritative per securable — it fully overwrites the grant list on `terraform apply` rather than adding to it. Declaring the catalog's grants as exactly the 4 RBAC groups and running `terraform apply` silently revoked the undeclared default grant along with it. Verified: `SHOW GRANTS ON CATALOG merchant_recon_project` now lists exactly the 4 groups above, nothing else. This is a real example of IaC adoption closing a drift-born security gap, not something staged for the write-up.
