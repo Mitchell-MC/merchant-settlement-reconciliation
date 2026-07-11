@@ -1,0 +1,22 @@
+version: 2
+
+sources:
+  - name: ops
+    database: merchant_recon_project
+    schema: ops
+    description: >
+      Observability tables written outside the normal model DAG -- the
+      dbt run telemetry log is populated by an on-run-end hook (see
+      transform/macros/log_run_results.sql), not a materialized model.
+    tables:
+      - name: dbt_run_telemetry
+        description: Append-only log of every model/test/seed outcome from every dbt invocation.
+        columns:
+          - name: invocation_id
+            tests: [not_null]
+          - name: status
+            tests: [not_null]
+
+models:
+  - name: run_summary
+    description: One-row-per-run rollup of reconciliation health and SLA flags -- the daily ops standup view.

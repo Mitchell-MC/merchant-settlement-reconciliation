@@ -28,3 +28,20 @@ models:
 
   - name: fct_funding_cost_summary
     description: As-of-report_date cash-at-risk and funding cost by merchant segment. See docs/kpi_contract.md #6, #7.
+
+  - name: fct_exception_queue
+    description: >
+      Triage-ready queue of open breaks with a suggested owner role,
+      severity, and SLA due date. Rebuilt fully each run (see model header
+      comment for the known persistence limitation).
+    columns:
+      - name: settlement_batch_id
+        tests: [unique, not_null]
+      - name: severity
+        tests:
+          - accepted_values:
+              values: ['critical', 'high', 'medium', 'low']
+      - name: triage_status
+        tests:
+          - accepted_values:
+              values: ['new']

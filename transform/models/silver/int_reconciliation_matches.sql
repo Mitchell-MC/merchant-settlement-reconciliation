@@ -135,7 +135,7 @@ split_candidates as (
     group by c.settlement_batch_id, c.merchant_id
 ),
 
-split_matches as (
+split_matches_raw as (
     select
         settlement_batch_id,
         merchant_id,
@@ -146,6 +146,37 @@ split_matches as (
     from split_candidates
     where posting_count > 1
       and abs(summed_amount - expected_settlement_amount) <= amount_tolerance
+),
+
+-- split_candidates are computed independently per batch, so two batches for
+-- the same merchant with overlapping windows can both claim the SAME
+-- leftover postings -- that's not a false break, it's real cash being
+-- double-counted across two obligations. Resolve conflicts deterministically:
+-- earliest batch_date wins each posting; a batch that loses any one of its
+-- claimed postings is fully invalidated (falls through to breaks) rather
+-- than partially matched.
+split_matches_exploded as (
+    select sm.settlement_batch_id, bw.batch_date, posting_id
+    from split_matches_raw sm
+    join batch_with_window bw on bw.settlement_batch_id = sm.settlement_batch_id
+    lateral view explode(sm.matched_posting_ids) t as posting_id
+),
+
+posting_winner as (
+    select
+        settlement_batch_id,
+        posting_id,
+        row_number() over (partition by posting_id order by batch_date asc, settlement_batch_id asc) as win_rank
+    from split_matches_exploded
+),
+
+split_matches as (
+    select sm.*
+    from split_matches_raw sm
+    where not exists (
+        select 1 from posting_winner pw
+        where pw.settlement_batch_id = sm.settlement_batch_id and pw.win_rank > 1
+    )
 ),
 
 matched as (
