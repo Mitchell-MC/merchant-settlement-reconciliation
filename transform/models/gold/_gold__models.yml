@@ -45,3 +45,8 @@ models:
         tests:
           - accepted_values:
               values: ['new']
+
+  - name: vw_exception_queue_masked
+    description: >
+      Report-safe, pseudonymized view of fct_exception_queue for the
+      BI Consumers role -- see docs/rbac_access_matrix.md.

@@ -17,6 +17,8 @@ select
     br.merchant_id,
     mer.business_name,
     br.industry,
+    br.region,
+    br.risk_tier,
     br.batch_date,
     br.break_first_identified_date,
     br.report_date,
