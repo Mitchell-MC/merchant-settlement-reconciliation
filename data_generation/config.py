@@ -11,38 +11,57 @@ from datetime import date
 
 @dataclass(frozen=True)
 class SegmentWeights:
-    """Merchant segmentation distribution. Defaults are a reasonable placeholder
-    mix; swap in CBP-derived weights (see docs/source_contracts/cbp.md) once
-    the reference download is wired up in Phase 2 ingestion.
+    """Merchant segmentation distribution, derived from the 2023 CBP county
+    file (see docs/source_contracts/cbp.md and ingestion/cbp_ingest.py).
+    Regenerate via scripts/derive_segment_weights.py if a newer CBP vintage
+    is ingested.
+
+    Two documented judgment calls layered on the raw establishment counts:
+    - CBP reports NAICS 44 (Retail Trade) and 45 (Nonstore Retailers, incl.
+      e-commerce) as a single combined "44" sector at the 2-digit grain --
+      there's no way to isolate online-only establishment counts from this
+      file, so the combined total is split 80/20 retail/ecommerce as an
+      assumption, not a measurement.
+    - Raw establishment counts span the whole economy (manufacturing,
+      wholesale, utilities...) which aren't realistic SMB card-processing
+      customers for a payment facilitator. Using the raw ~35% "other" share
+      would make an irrelevant residual the single largest merchant segment,
+      so "other" is capped at a fixed 5% and the 7 named industries' *relative*
+      proportions to each other (the real CBP signal) are rescaled to fill
+      the remaining 95%.
     """
 
     industries: dict = field(default_factory=lambda: {
-        "retail": 0.22,
-        "restaurant_food_service": 0.18,
-        "professional_services": 0.15,
-        "ecommerce_online_retail": 0.15,
-        "health_wellness": 0.10,
-        "home_trade_services": 0.10,
-        "auto_services": 0.06,
-        "other": 0.04,
+        "health_wellness": 0.1751,
+        "professional_services": 0.1726,
+        "retail": 0.1457,
+        "home_trade_services": 0.1422,
+        "auto_services": 0.1410,
+        "restaurant_food_service": 0.1370,
+        "other": 0.0500,
+        "ecommerce_online_retail": 0.0364,
     })
 
+    # Establishment counts by Census region, 2023 CBP county file, all mapped industries.
     regions: dict = field(default_factory=lambda: {
-        "Northeast": 0.18,
-        "Midwest": 0.21,
-        "South": 0.38,
-        "West": 0.23,
+        "South": 0.3692,
+        "West": 0.2509,
+        "Midwest": 0.2011,
+        "Northeast": 0.1787,
     })
 
+    # Establishment counts by employer size class, 2023 CBP county file
+    # (national, all sectors); CBP's "500-999" and "1000+" buckets are
+    # merged into "500+" to match this project's coarser taxonomy.
     employer_size_classes: dict = field(default_factory=lambda: {
-        "1-4": 0.45,
-        "5-9": 0.22,
-        "10-19": 0.14,
-        "20-49": 0.10,
-        "50-99": 0.05,
-        "100-249": 0.03,
-        "250-499": 0.008,
-        "500+": 0.002,
+        "1-4": 0.5610,
+        "5-9": 0.1755,
+        "10-19": 0.1246,
+        "20-49": 0.0897,
+        "50-99": 0.0283,
+        "100-249": 0.0153,
+        "250-499": 0.0036,
+        "500+": 0.0019,
     })
 
     risk_tiers: dict = field(default_factory=lambda: {
