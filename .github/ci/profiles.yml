@@ -1,0 +1,16 @@
+# CI-only dbt profile: OAuth M2M (service principal client_id/secret from
+# GitHub Actions secrets), not the interactive browser OAuth used for local
+# dev (see transform/profiles.yml.example). No secrets in this file --
+# both values come from the environment at run time.
+merchant_reconciliation:
+  target: ci
+  outputs:
+    ci:
+      type: databricks
+      catalog: merchant_recon_project
+      schema: silver
+      host: "{{ env_var('DATABRICKS_HOST') }}"
+      http_path: "/sql/1.0/warehouses/59901b31d31db40a"
+      client_id: "{{ env_var('DATABRICKS_CLIENT_ID') }}"
+      client_secret: "{{ env_var('DATABRICKS_CLIENT_SECRET') }}"
+      threads: 4

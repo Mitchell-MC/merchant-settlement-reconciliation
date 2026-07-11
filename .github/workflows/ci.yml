@@ -1,0 +1,71 @@
+name: CI
+
+# Runs on every PR. Enforces the deployment order from the plan:
+# infrastructure validation and transformation/test validation both gate
+# merge; schedule activation is a separate, deliberate step in cd.yml, never
+# automatic.
+#
+# Setup required before this can actually run green (see infra/README.md):
+#   - Repo secrets DATABRICKS_CLIENT_ID / DATABRICKS_CLIENT_SECRET for the
+#     `recon-ci-cd` service principal (application_id
+#     3acbec4b-0afd-4c00-b39d-3399d8f1d50f, already created and added to the
+#     recon_engineering group -- see infra/service_principals.tf). Generate
+#     the secret with `databricks service-principal-secrets create
+#     3acbec4b-0afd-4c00-b39d-3399d8f1d50f --profile meridian-account` and
+#     add it via `gh secret set`, never commit it.
+
+on:
+  pull_request:
+    branches: [main]
+
+env:
+  DATABRICKS_HOST: https://dbc-08add949-9c19.cloud.databricks.com
+  DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+  DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+
+jobs:
+  terraform-validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.12.2"
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false
+      - run: terraform validate
+
+  dbt-parse:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: transform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "dbt-databricks>=1.8,<2.0"
+      - run: dbt deps
+      - run: dbt parse # syntax/DAG validation only -- no warehouse connection needed
+
+  dbt-build-test:
+    needs: [terraform-validate, dbt-parse]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: transform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "dbt-databricks>=1.8,<2.0"
+      - run: dbt deps
+      - name: dbt build (seeds + models + tests) against the live dev catalog
+        env:
+          DBT_PROFILES_DIR: .github/ci
+        run: dbt build

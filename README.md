@@ -41,11 +41,10 @@ Runs on Databricks (Unity Catalog, AWS). Infrastructure is Terraform-managed; tr
 | [ingestion/](ingestion/) | FRPS/CBP/CPI macro reference data ingestion scripts |
 | [common/](common/) | Shared Bronze lineage/landing helpers used by both `data_generation/` and `ingestion/` |
 | [transform/](transform/) | dbt-databricks project — Bronze/Silver/Gold models, tests, reconciliation logic |
-| [infra/](infra/) | Terraform — Databricks workspace, Unity Catalog, compute, jobs |
-| [orchestration/](orchestration/) | Databricks Jobs / workflow definitions |
-| [.github/workflows/](.github/workflows/) | CI/CD pipelines |
+| [infra/](infra/) | Terraform — Unity Catalog, warehouse, RBAC groups/grants, the daily reconciliation job |
+| [.github/workflows/](.github/workflows/) | CI (`ci.yml`) and CD (`cd.yml`) pipelines; `.github/ci/` holds the CI-only dbt profile |
 | [bi/](bi/) | Power BI model docs, KPI traceability page |
-| [scripts/](scripts/) | Operational scripts (backfill, drift-check, etc.) |
+| [scripts/](scripts/) | Operational scripts (segment-weight derivation, workspace sync) |
 
 ## Status
 

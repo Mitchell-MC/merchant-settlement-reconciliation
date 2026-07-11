@@ -1,0 +1,64 @@
+name: CD
+
+# Enforced deployment order, each a separate job so a failure at any stage
+# blocks everything after it: infra validation -> infra apply -> dbt deploy
+# -> schedule activation. Schedule activation is gated behind the `release`
+# GitHub Environment (configure required reviewers on it in repo settings)
+# -- unpausing the daily job is a deliberate human decision, not a side
+# effect of merging code.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {} # allows manually re-running just the activation step
+
+env:
+  DATABRICKS_HOST: https://dbc-08add949-9c19.cloud.databricks.com
+  DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+  DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+
+jobs:
+  terraform-apply:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.12.2"
+      - run: terraform init
+      - run: terraform plan -var-file=environments/dev.tfvars -out=tfplan
+      - run: terraform apply -auto-approve tfplan
+
+  dbt-deploy:
+    needs: terraform-apply
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Databricks CLI
+        run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+      - name: Sync dbt project to the workspace
+        run: databricks sync --full transform /Shared/merchant_reconciliation/transform
+      - name: Run dbt build once as a deploy-time smoke test
+        working-directory: transform
+        env:
+          DBT_PROFILES_DIR: ../.github/ci
+        run: |
+          pip install "dbt-databricks>=1.8,<2.0"
+          dbt deps
+          dbt build
+
+  activate-schedule:
+    needs: dbt-deploy
+    runs-on: ubuntu-latest
+    environment: release # requires a reviewer approval configured on this GitHub Environment
+    steps:
+      - name: Install Databricks CLI
+        run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+      - name: Unpause the daily reconciliation job
+        run: |
+          databricks jobs update --job-id "$JOB_ID" --json '{"new_settings": {"schedule": {"pause_status": "UNPAUSED"}}}'
+        env:
+          JOB_ID: "376440490795606"

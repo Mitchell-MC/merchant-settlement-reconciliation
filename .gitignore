@@ -12,6 +12,7 @@ transform/dbt_packages/
 transform/logs/
 transform/.user.yml
 transform/profiles.yml
+transform/.databricks/
 
 # Terraform (.terraform.lock.hcl IS committed -- standard practice for reproducible provider versions)
 infra/**/.terraform/
