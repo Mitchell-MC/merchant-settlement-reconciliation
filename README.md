@@ -26,8 +26,10 @@ FRPS / CBP / CPI (public macro reference data)     Synthetic operational data ge
                     Gold    (cash position, breaks, aging, root cause, funding cost —
                               star schema)
                               |
-                    Power BI  (executive KPI page + ops drill-down)
+                    Executive dashboard (live) + Power BI (documented)
 ```
+
+See [docs/architecture.md](docs/architecture.md) for the full data-flow diagram. The executive dashboard ([source](bi/executive_dashboard.html)) is built from real Gold-layer data and published as a private Claude artifact — share it from claude.ai/code/artifacts before sending the link to anyone else.
 
 Runs on Databricks (Unity Catalog, AWS). Infrastructure is Terraform-managed; transformations are tested dbt models; CI/CD gates deployment on SQL/dbt validation, test execution, and Terraform plan.
 
@@ -43,12 +45,12 @@ Runs on Databricks (Unity Catalog, AWS). Infrastructure is Terraform-managed; tr
 | [transform/](transform/) | dbt-databricks project — Bronze/Silver/Gold models, tests, reconciliation logic |
 | [infra/](infra/) | Terraform — Unity Catalog, warehouse, RBAC groups/grants, the daily reconciliation job |
 | [.github/workflows/](.github/workflows/) | CI (`ci.yml`) and CD (`cd.yml`) pipelines; `.github/ci/` holds the CI-only dbt profile |
-| [bi/](bi/) | Power BI model docs, KPI traceability page |
+| [bi/](bi/) | Executive dashboard (live, real data) and the Power BI connection guide (documented) |
 | [scripts/](scripts/) | Operational scripts (segment-weight derivation, workspace sync) |
 
 ## Status
 
-Build tracked against a 9-phase, 10-week plan. Currently in Phases 1–4 (business framing, source contracts, synthetic data generation, medallion modeling + reconciliation engine).
+All 9 phases complete. See [docs/executive_summary.md](docs/executive_summary.md) for a one-page summary, [docs/architecture.md](docs/architecture.md) for where each phase's output lives, and [docs/interview_prep.md](docs/interview_prep.md) for design-tradeoff talking points and real bugs found/fixed during the build.
 
 ## Scope boundaries
 
