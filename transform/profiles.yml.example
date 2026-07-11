@@ -1,0 +1,14 @@
+# Copy to transform/profiles.yml (gitignored) and fill in your workspace values.
+# No secrets belong in this file -- auth_type: oauth triggers an interactive
+# browser login on first dbt command; the token is cached in your OS keychain.
+merchant_reconciliation:
+  target: dev
+  outputs:
+    dev:
+      type: databricks
+      catalog: merchant_recon_project
+      schema: silver
+      host: "<your-workspace>.cloud.databricks.com"
+      http_path: "/sql/1.0/warehouses/<warehouse-id>"
+      auth_type: oauth
+      threads: 4

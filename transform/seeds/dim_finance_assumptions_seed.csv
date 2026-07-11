@@ -1,0 +1,6 @@
+assumption_key,assumption_value,description,owner
+assumed_cost_of_funds_annual_rate,0.08,Annualized cost of capital used for funding cost estimate (KPI #7),VP Treasury
+cash_at_risk_aging_threshold_business_days,5,Breaks aged beyond this many business days count as cash-at-risk (KPI #6),VP Treasury
+reconciliation_amount_tolerance_floor_usd,1.00,Absolute floor for the amount-tolerance match rule,Controller / Accounting
+reconciliation_amount_tolerance_pct,0.001,Proportional (0.1%) amount-tolerance match rule,Controller / Accounting
+reconciliation_date_window_business_days,2,Business-day window for a bank posting to be eligible to match a batch,Controller / Accounting

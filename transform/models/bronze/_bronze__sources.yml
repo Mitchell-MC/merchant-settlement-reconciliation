@@ -1,0 +1,139 @@
+version: 2
+
+sources:
+  - name: bronze
+    database: merchant_recon_project   # Unity Catalog catalog name; Phase 7 Terraform parameterizes dev/prod catalogs
+    schema: bronze
+    description: >
+      Raw landed tables from the synthetic operational data generator
+      (data_generation/generate.py) and public macro reference sources
+      (FRPS, CBP, CPI). Immutable, append-only, carries lineage metadata
+      on every row. See docs/non_functional_targets.md for the Bronze
+      immutability contract.
+    loader: databricks_copy_into
+    freshness:
+      warn_after: {count: 26, period: hour}
+      error_after: {count: 50, period: hour}
+    loaded_at_field: _ingestion_timestamp
+
+    tables:
+      - name: merchants
+        description: Merchant dimension, generated once per run (static reference).
+        columns:
+          - name: merchant_id
+            description: Primary key.
+            tests: [unique, not_null]
+          - name: business_name
+          - name: industry
+          - name: mcc
+          - name: region
+          - name: state
+          - name: employer_size_class
+          - name: risk_tier
+          - name: onboarding_date
+          - name: reserve_rate_bps
+          - name: processing_fee_bps
+          - name: settlement_speed_business_days
+          - name: avg_ticket_usd
+          - name: daily_txn_volume_multiplier
+
+      - name: transactions
+        description: Raw transaction-level events (grain -- one row per transaction).
+        columns:
+          - name: transaction_id
+            tests: [unique, not_null]
+          - name: merchant_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('bronze', 'merchants')
+                  field: merchant_id
+          - name: transaction_date
+          - name: transaction_timestamp
+          - name: transaction_type
+            tests:
+              - accepted_values:
+                  values: ['sale', 'refund']
+          - name: channel
+            tests:
+              - accepted_values:
+                  values: ['card_present', 'ecommerce']
+          - name: amount
+
+      - name: settlement_batches
+        description: >
+          Daily per-merchant settlement batch -- the "expected settlement"
+          side of the reconciliation. Grain: one row per (merchant_id, batch_date).
+        columns:
+          - name: settlement_batch_id
+            tests: [unique, not_null]
+          - name: merchant_id
+            tests: [not_null]
+          - name: batch_date
+            tests: [not_null]
+          - name: transaction_count
+          - name: gross_sales_volume
+          - name: same_day_refunds
+          - name: interchange_fees
+          - name: network_fees
+          - name: processing_fees
+          - name: reserve_held
+          - name: reserve_released
+          - name: returns_adjustments_amount
+          - name: expected_settlement_amount
+            tests: [not_null]
+          - name: expected_payout_date
+            tests: [not_null]
+
+      - name: reserve_events
+        description: Reserve hold/release ledger events.
+        columns:
+          - name: merchant_id
+            tests: [not_null]
+          - name: event_type
+            tests:
+              - accepted_values:
+                  values: ['hold', 'release']
+          - name: event_date
+          - name: amount
+          - name: related_date
+
+      - name: returns_adjustments
+        description: Lagged return/chargeback/dispute adjustments applied against a later settlement batch.
+        columns:
+          - name: adjustment_id
+            tests: [unique, not_null]
+          - name: merchant_id
+            tests: [not_null]
+          - name: adjustment_date
+          - name: original_batch_date
+          - name: amount
+          - name: reason_code
+            tests:
+              - accepted_values:
+                  values: ['chargeback', 'customer_return', 'billing_dispute']
+
+      - name: bank_movements
+        description: >
+          The "actual cash" side of the reconciliation -- raw bank postings.
+          Not guaranteed to line up 1:1 with settlement_batches; that's the
+          reconciliation engine's job in Silver/Gold.
+        columns:
+          - name: posting_id
+            tests: [unique, not_null]
+          - name: merchant_id
+            tests: [not_null]
+          - name: posting_date
+            tests: [not_null]
+          - name: amount
+            tests: [not_null]
+          - name: bank_reference
+
+      - name: frps_payment_volumes
+        description: Federal Reserve Payments Study top-line volume/value by payment type (see docs/source_contracts/frps.md).
+
+      - name: cbp_establishments
+        description: County Business Patterns establishment counts by geography/industry/employer-size (see docs/source_contracts/cbp.md).
+
+      - name: cpi_monthly
+        description: BLS Consumer Price Index monthly series (see docs/source_contracts/cpi.md).

@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: fct_reconciliation_breaks
+    description: >
+      One row per open (unresolved) settlement break, with aging bucket,
+      cash-at-risk flag, funding cost estimate, and a root-cause hint.
+      See docs/kpi_contract.md #3, #5, #6, #7.
+    columns:
+      - name: settlement_batch_id
+        tests: [unique, not_null]
+      - name: aging_bucket
+        tests:
+          - accepted_values:
+              values: ['0-1', '2-3', '4-7', '8-14', '15+']
+
+  - name: fct_daily_cash_position
+    description: Daily trend of expected vs. actual cash and break/match rates. See docs/kpi_contract.md #1, #2, #4, #8.
+    columns:
+      - name: batch_date
+        tests: [unique, not_null]
+
+  - name: fct_merchant_exception_trends
+    description: Merchant-level rollup of open breaks -- feeds the ops drill-down BI page.
+    columns:
+      - name: merchant_id
+        tests: [unique, not_null]
+
+  - name: fct_funding_cost_summary
+    description: As-of-report_date cash-at-risk and funding cost by merchant segment. See docs/kpi_contract.md #6, #7.
