@@ -6,4 +6,6 @@
 # picks up any code change.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-databricks sync --full transform /Shared/merchant_reconciliation/transform --profile meridian-dev
+# MSYS_NO_PATHCONV: Git Bash otherwise rewrites the leading-slash workspace
+# path as a Windows filesystem path (see docs/interview_prep.md's gotcha list).
+MSYS_NO_PATHCONV=1 databricks sync --full transform /Shared/merchant_reconciliation/transform --profile meridian-dev
