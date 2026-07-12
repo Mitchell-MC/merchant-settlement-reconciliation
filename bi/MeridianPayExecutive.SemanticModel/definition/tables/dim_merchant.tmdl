@@ -1,0 +1,109 @@
+table dim_merchant
+	lineageTag: 01226bcd-20ac-4020-9a90-da091c58e41a
+
+	column merchant_id
+		dataType: string
+		isKey: true
+		sourceColumn: merchant_id
+		lineageTag: adc35a92-e8b4-4201-a3e2-87aea2214f58
+
+		annotation SummarizationSetBy = Automatic
+
+	column business_name
+		dataType: string
+		sourceColumn: business_name
+		lineageTag: b3b36e1a-6196-4153-a1ff-f8959c79d78e
+
+		annotation SummarizationSetBy = Automatic
+
+	column industry
+		dataType: string
+		sourceColumn: industry
+		lineageTag: c08b73fd-b6ec-4605-893c-07a93edb36e4
+
+		annotation SummarizationSetBy = Automatic
+
+	column mcc
+		dataType: string
+		sourceColumn: mcc
+		lineageTag: 49eac5b9-019c-40b9-ab31-6cc36b2e9ad3
+
+		annotation SummarizationSetBy = Automatic
+
+	column region
+		dataType: string
+		sourceColumn: region
+		lineageTag: 3480adfd-f5dd-4c51-a5a8-c2022f41d805
+
+		annotation SummarizationSetBy = Automatic
+
+	column state
+		dataType: string
+		sourceColumn: state
+		lineageTag: 6347e46f-c872-4c7e-90fa-6f667cde7615
+
+		annotation SummarizationSetBy = Automatic
+
+	column employer_size_class
+		dataType: string
+		sourceColumn: employer_size_class
+		lineageTag: 2d3a1ff9-78ff-4050-8752-b2f22433ca01
+
+		annotation SummarizationSetBy = Automatic
+
+	column risk_tier
+		dataType: string
+		sourceColumn: risk_tier
+		lineageTag: aec0dcb3-6bb0-4772-90b1-fb36e0548a39
+
+		annotation SummarizationSetBy = Automatic
+
+	column onboarding_date
+		dataType: dateTime
+		formatString: Long Date
+		sourceColumn: onboarding_date
+		lineageTag: e7eb5e6b-b205-4ac3-bcff-f59ebfa6e842
+
+		annotation SummarizationSetBy = Automatic
+
+	column reserve_rate_bps
+		dataType: int64
+		sourceColumn: reserve_rate_bps
+		lineageTag: f869e3af-70cd-4468-9c9d-4896b34c73ab
+
+		annotation SummarizationSetBy = Automatic
+
+	column processing_fee_bps
+		dataType: int64
+		sourceColumn: processing_fee_bps
+		lineageTag: 536fca65-3c19-4fb5-93d8-d61b54b527ae
+
+		annotation SummarizationSetBy = Automatic
+
+	column settlement_speed_business_days
+		dataType: int64
+		sourceColumn: settlement_speed_business_days
+		lineageTag: 9ad0d043-afda-4111-82ab-cfcdc38e1959
+
+		annotation SummarizationSetBy = Automatic
+
+	column avg_ticket_usd
+		dataType: double
+		formatString: \$#,0.00
+		sourceColumn: avg_ticket_usd
+		lineageTag: efa1745e-65a5-4abd-9550-84b298749882
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_merchant = m
+		mode: dual
+		source =
+		let
+			Source = Databricks.Catalogs("dbc-08add949-9c19.cloud.databricks.com", "/sql/1.0/warehouses/59901b31d31db40a", [EnableAutostart=true]),
+			catalog_Database = Source{[Name="merchant_recon_project",Kind="Database"]}[Data],
+			schema_Schema = catalog_Database{[Name="silver",Kind="Schema"]}[Data],
+			table_Table = schema_Schema{[Name="dim_merchant",Kind="Table"]}[Data]
+		in
+			table_Table
+
+	annotation PBI_ResultType = Table

@@ -1,6 +1,8 @@
 # Power BI Connection Guide
 
-**Status: documented, not built.** Power BI Desktop isn't available in the environment this project was built in, so unlike everything else in this repo, the semantic model and DAX below are written but not connected/tested against a live `.pbix`. The [live dashboard artifact](executive_dashboard.html) is the verified, working BI deliverable — this document is the "here's exactly how you'd wire Power BI to the same Gold layer" companion, for teams that standardize on Power BI specifically.
+**Status: real Power BI Project source exists, not yet opened/rendered.** [`MeridianPayExecutive.pbip`](MeridianPayExecutive.pbip) (with `MeridianPayExecutive.SemanticModel/` and `MeridianPayExecutive.Report/`) is a real Power BI Project — TMDL semantic model (all 7 tables below, the 3 relationships, and all 7 DAX measures, generated directly from the actual Gold/Silver dbt model columns, not hand-guessed) plus a 2-page report shell wired to it. It was authored as text/TMDL/JSON, not built by driving Power BI Desktop's GUI (no GUI automation available), so **it has not actually been opened in Desktop or confirmed to load/refresh against the live Databricks warehouse** — treat first-open as the remaining verification step, not a formality. If Desktop reports an error on open, that's real signal, not a false alarm — report it back and it can be fixed from there. The [live dashboard artifact](executive_dashboard.html) remains the verified, working BI deliverable regardless of how the `.pbip` opens.
+
+**To open:** double-click `MeridianPayExecutive.pbip` in Power BI Desktop. It should prompt for Databricks OAuth sign-in (same RBAC groups as below) and load the model; the two report pages start blank — the DAX measures and star schema are already there, so building the visuals described under "Report pages" below is drag-and-drop from that point, no data modeling required.
 
 ## Connection
 

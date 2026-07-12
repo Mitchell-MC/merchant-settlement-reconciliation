@@ -1,0 +1,87 @@
+table dim_date
+	lineageTag: 36326124-ad94-4a4d-b154-24003cc322ef
+
+	column date_day
+		dataType: dateTime
+		isKey: true
+		formatString: Long Date
+		sourceColumn: date_day
+		lineageTag: 69fd3295-6801-4c93-b10c-fff1f00746e6
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_of_week_num
+		dataType: int64
+		sourceColumn: day_of_week_num
+		lineageTag: 35e023c9-617e-4a70-baa9-8608c0541138
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_name
+		dataType: string
+		sourceColumn: day_name
+		lineageTag: bc06dad4-910a-467e-9d79-b16adc977271
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_weekend
+		dataType: boolean
+		sourceColumn: is_weekend
+		lineageTag: a0a80c79-18f6-4169-9f8c-e584cb6cea01
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_federal_holiday
+		dataType: boolean
+		sourceColumn: is_federal_holiday
+		lineageTag: cb68df66-913f-4176-b23a-2aef5dedc768
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_business_day
+		dataType: boolean
+		sourceColumn: is_business_day
+		lineageTag: 27a2671f-e2dc-4d11-9d94-b36e41c3d387
+
+		annotation SummarizationSetBy = Automatic
+
+	column year
+		dataType: int64
+		sourceColumn: year
+		lineageTag: a1acb11e-9d6f-4438-bb98-eb78ccf4be0a
+
+		annotation SummarizationSetBy = Automatic
+
+	column month
+		dataType: int64
+		sourceColumn: month
+		lineageTag: f39b7b77-3523-450b-8aae-69c9fbebc5cc
+
+		annotation SummarizationSetBy = Automatic
+
+	column quarter
+		dataType: int64
+		sourceColumn: quarter
+		lineageTag: 394e0a77-a692-4340-a9f4-eb83b5908b4a
+
+		annotation SummarizationSetBy = Automatic
+
+	column business_day_seq
+		dataType: int64
+		sourceColumn: business_day_seq
+		lineageTag: 935678d9-889f-4a59-af06-59873bdbcaea
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_date = m
+		mode: dual
+		source =
+		let
+			Source = Databricks.Catalogs("dbc-08add949-9c19.cloud.databricks.com", "/sql/1.0/warehouses/59901b31d31db40a", [EnableAutostart=true]),
+			catalog_Database = Source{[Name="merchant_recon_project",Kind="Database"]}[Data],
+			schema_Schema = catalog_Database{[Name="silver",Kind="Schema"]}[Data],
+			table_Table = schema_Schema{[Name="dim_date",Kind="Table"]}[Data]
+		in
+			table_Table
+
+	annotation PBI_ResultType = Table

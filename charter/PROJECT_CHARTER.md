@@ -38,7 +38,7 @@ This project builds the data platform that gives Meridian's finance and treasury
 
 **In scope:**
 - Daily batch reconciliation (not real-time/streaming — see the companion [Fintech fraud/AML project](../../Fintech_project) for the streaming half of the portfolio).
-- Synthetic operational data (transactions, settlement batches, fees, reserves, returns, bank postings) generated deterministically, informed by real macro/reference data (FRPS, CBP, CPI) for realism.
+- Synthetic operational data (transactions, settlement batches, fees, reserves, returns, bank postings) generated deterministically, informed by real macro/reference data (FRPS, CBP, CPI, FRED) for realism.
 - Production-readiness controls: data quality gates, RBAC design, IaC, CI/CD, observability.
 
 **Out of scope:**
@@ -62,4 +62,4 @@ Extends the above with:
 
 - [KPI Contract](../docs/kpi_contract.md)
 - [Non-Functional Targets](../docs/non_functional_targets.md)
-- [Source Contracts](../docs/source_contracts/) (FRPS, CBP, CPI)
+- [Source Contracts](../docs/source_contracts/) (FRPS, CBP, CPI, FRED)

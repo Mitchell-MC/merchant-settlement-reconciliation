@@ -1,0 +1,154 @@
+table fct_reconciliation_breaks
+	lineageTag: 71899d48-e556-4b3a-b34d-0d6aa6f3bbd2
+
+	measure 'Cash-at-Risk Count' = CALCULATE(
+		    COUNTROWS(fct_reconciliation_breaks),
+		    fct_reconciliation_breaks[is_cash_at_risk] = TRUE()
+		)
+		formatString: #,0
+		lineageTag: 649ff766-ca5c-4597-a113-f6d49c93cef3
+
+	measure 'Funding Cost Estimate' = SUM(fct_reconciliation_breaks[funding_cost_estimate])
+		formatString: \$#,0.00
+		lineageTag: 61803ace-00bf-4993-863f-97e00a577b12
+
+	column settlement_batch_id
+		dataType: string
+		isKey: true
+		sourceColumn: settlement_batch_id
+		lineageTag: 5dad52cf-edfe-4277-a4d1-1ff75e233647
+
+		annotation SummarizationSetBy = Automatic
+
+	column merchant_id
+		dataType: string
+		sourceColumn: merchant_id
+		lineageTag: 64454a72-d1b6-42c0-9911-9af09c78f126
+
+		annotation SummarizationSetBy = Automatic
+
+	column industry
+		dataType: string
+		sourceColumn: industry
+		lineageTag: 9e04bd7c-c8a0-4421-8aa6-ec4056a874b9
+
+		annotation SummarizationSetBy = Automatic
+
+	column region
+		dataType: string
+		sourceColumn: region
+		lineageTag: 7ef83116-cda4-4c40-a7ab-509328d49a57
+
+		annotation SummarizationSetBy = Automatic
+
+	column risk_tier
+		dataType: string
+		sourceColumn: risk_tier
+		lineageTag: bb1117ac-f23f-42e4-934c-f67bf5c8df38
+
+		annotation SummarizationSetBy = Automatic
+
+	column batch_date
+		dataType: dateTime
+		formatString: Long Date
+		sourceColumn: batch_date
+		lineageTag: 4495b78b-24d3-4af0-808c-33d58f8fec09
+
+		annotation SummarizationSetBy = Automatic
+
+	column expected_payout_date
+		dataType: dateTime
+		formatString: Long Date
+		sourceColumn: expected_payout_date
+		lineageTag: eff40129-9b3e-4ad2-8e84-7dec8d1a954b
+
+		annotation SummarizationSetBy = Automatic
+
+	column break_first_identified_date
+		dataType: dateTime
+		formatString: Long Date
+		sourceColumn: break_first_identified_date
+		lineageTag: d9ba0cef-817c-4413-8b0d-a4ee296fa52e
+
+		annotation SummarizationSetBy = Automatic
+
+	column report_date
+		dataType: dateTime
+		formatString: Long Date
+		sourceColumn: report_date
+		lineageTag: ba750f11-e6f6-40a1-854d-67dc3d0b6024
+
+		annotation SummarizationSetBy = Automatic
+
+	column expected_settlement_amount
+		dataType: double
+		formatString: \$#,0.00
+		sourceColumn: expected_settlement_amount
+		lineageTag: a3ca4ffa-782e-4000-815d-c09483e3a792
+
+		annotation SummarizationSetBy = Automatic
+
+	column actual_cash_received
+		dataType: double
+		formatString: \$#,0.00
+		sourceColumn: actual_cash_received
+		lineageTag: 034e0bbe-3d6a-4012-9789-d16a2fe75b71
+
+		annotation SummarizationSetBy = Automatic
+
+	column break_amount
+		dataType: double
+		formatString: \$#,0.00
+		sourceColumn: break_amount
+		lineageTag: 59c72c43-db7e-4591-9457-4c7d72de8fdf
+
+		annotation SummarizationSetBy = Automatic
+
+	column age_business_days
+		dataType: int64
+		sourceColumn: age_business_days
+		lineageTag: 2c975a44-fbcd-44e7-80e8-fae1413efcbb
+
+		annotation SummarizationSetBy = Automatic
+
+	column aging_bucket
+		dataType: string
+		sourceColumn: aging_bucket
+		lineageTag: 4a8fb566-0daf-48fd-a499-50569405aa15
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_cash_at_risk
+		dataType: boolean
+		sourceColumn: is_cash_at_risk
+		lineageTag: f344f5ce-c856-40d2-bef2-e92ef6fcb275
+
+		annotation SummarizationSetBy = Automatic
+
+	column funding_cost_estimate
+		dataType: double
+		formatString: \$#,0.00
+		sourceColumn: funding_cost_estimate
+		lineageTag: e43291ea-d3a4-49ac-b15e-44afe2e47e2e
+
+		annotation SummarizationSetBy = Automatic
+
+	column root_cause_hint
+		dataType: string
+		sourceColumn: root_cause_hint
+		lineageTag: 59a4f78c-e818-4e4d-8f1f-c5d6f10831b4
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fct_reconciliation_breaks = m
+		mode: directQuery
+		source =
+		let
+			Source = Databricks.Catalogs("dbc-08add949-9c19.cloud.databricks.com", "/sql/1.0/warehouses/59901b31d31db40a", [EnableAutostart=true]),
+			catalog_Database = Source{[Name="merchant_recon_project",Kind="Database"]}[Data],
+			schema_Schema = catalog_Database{[Name="gold",Kind="Schema"]}[Data],
+			table_Table = schema_Schema{[Name="fct_reconciliation_breaks",Kind="Table"]}[Data]
+		in
+			table_Table
+
+	annotation PBI_ResultType = Table

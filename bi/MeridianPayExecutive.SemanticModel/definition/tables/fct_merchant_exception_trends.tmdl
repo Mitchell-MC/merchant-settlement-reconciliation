@@ -1,0 +1,104 @@
+table fct_merchant_exception_trends
+	lineageTag: 26337e21-37e0-4819-ac9f-799976359d16
+
+	column merchant_id
+		dataType: string
+		isKey: true
+		sourceColumn: merchant_id
+		lineageTag: ba33e836-c478-4972-8c70-99853d0b99f5
+
+		annotation SummarizationSetBy = Automatic
+
+	column business_name
+		dataType: string
+		sourceColumn: business_name
+		lineageTag: ceb5c785-5277-419b-9e4c-3f0226dde7a8
+
+		annotation SummarizationSetBy = Automatic
+
+	column industry
+		dataType: string
+		sourceColumn: industry
+		lineageTag: 79721586-6994-4a52-b78c-88385e877732
+
+		annotation SummarizationSetBy = Automatic
+
+	column region
+		dataType: string
+		sourceColumn: region
+		lineageTag: 80dcc921-a3e6-4472-8083-ecb1ad9c53f4
+
+		annotation SummarizationSetBy = Automatic
+
+	column risk_tier
+		dataType: string
+		sourceColumn: risk_tier
+		lineageTag: 136b5fd4-f574-4ccb-9292-471bb66e2d7d
+
+		annotation SummarizationSetBy = Automatic
+
+	column open_break_count
+		dataType: int64
+		sourceColumn: open_break_count
+		lineageTag: 19a8bf89-18ff-40af-b1dd-2420768404ce
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_break_amount
+		dataType: double
+		formatString: \$#,0.00
+		sourceColumn: total_break_amount
+		lineageTag: b0175d0c-e9bc-4279-9809-a2bcff9e0355
+
+		annotation SummarizationSetBy = Automatic
+
+	column avg_age_business_days
+		dataType: double
+		formatString: 0.0
+		sourceColumn: avg_age_business_days
+		lineageTag: a0aae8f6-53d6-4df8-9031-5b2b515ce64a
+
+		annotation SummarizationSetBy = Automatic
+
+	column cash_at_risk_break_count
+		dataType: int64
+		sourceColumn: cash_at_risk_break_count
+		lineageTag: b7c1d41f-f3a0-42cf-b3a5-a9c4c17b3ba9
+
+		annotation SummarizationSetBy = Automatic
+
+	column cash_at_risk_amount
+		dataType: double
+		formatString: \$#,0.00
+		sourceColumn: cash_at_risk_amount
+		lineageTag: 9ce3d247-d4c1-41b6-9939-f9bbad956446
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_funding_cost_estimate
+		dataType: double
+		formatString: \$#,0.00
+		sourceColumn: total_funding_cost_estimate
+		lineageTag: 99884ff0-e071-4a93-bd1a-39a494b3ce8b
+
+		annotation SummarizationSetBy = Automatic
+
+	column most_common_root_cause
+		dataType: string
+		sourceColumn: most_common_root_cause
+		lineageTag: fe204bc5-ee11-4a96-8b67-118938f4e639
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fct_merchant_exception_trends = m
+		mode: import
+		source =
+		let
+			Source = Databricks.Catalogs("dbc-08add949-9c19.cloud.databricks.com", "/sql/1.0/warehouses/59901b31d31db40a", [EnableAutostart=true]),
+			catalog_Database = Source{[Name="merchant_recon_project",Kind="Database"]}[Data],
+			schema_Schema = catalog_Database{[Name="gold",Kind="Schema"]}[Data],
+			table_Table = schema_Schema{[Name="fct_merchant_exception_trends",Kind="Table"]}[Data]
+		in
+			table_Table
+
+	annotation PBI_ResultType = Table

@@ -1,0 +1,121 @@
+table fct_daily_cash_position
+	lineageTag: 71986c96-f540-4a4d-b333-b248dec5f4d5
+
+	measure 'Total Expected Settlement' = SUM(fct_daily_cash_position[total_expected_settlement_amount])
+		formatString: \$#,0.00
+		lineageTag: 855e5a7d-3b9b-4aff-bd2f-e909347c9e52
+
+	measure 'Total Actual Cash Received' = SUM(fct_daily_cash_position[total_actual_cash_received])
+		formatString: \$#,0.00
+		lineageTag: 31345c49-4791-4dfd-8983-21edc8318c0f
+
+	measure 'Reconciliation Match Rate' = DIVIDE(
+		    SUMX(fct_daily_cash_position, fct_daily_cash_position[reconciliation_match_rate] * fct_daily_cash_position[total_expected_settlement_amount]),
+		    SUM(fct_daily_cash_position[total_expected_settlement_amount])
+		)
+		formatString: 0.00%
+		lineageTag: 6180c225-47f8-446c-8116-aaecad5f89f4
+
+	measure 'Unresolved Break Amount (Latest Day)' = VAR LatestDate = MAX(fct_daily_cash_position[batch_date])
+		RETURN
+		    CALCULATE(
+		        SUM(fct_daily_cash_position[unresolved_break_amount]),
+		        fct_daily_cash_position[batch_date] = LatestDate
+		    )
+		formatString: \$#,0.00
+		lineageTag: debadd02-f7dd-430a-a5c6-936f00785b37
+
+	measure 'Break Rate (Dollar Basis)' = DIVIDE([Total Expected Settlement] - [Total Actual Cash Received], [Total Expected Settlement])
+		formatString: 0.00%
+		lineageTag: d3ba6c1e-f9c7-474c-9ac9-2f8145f276ef
+
+	column batch_date
+		dataType: dateTime
+		isKey: true
+		formatString: Long Date
+		sourceColumn: batch_date
+		lineageTag: 141ea72e-8df8-4294-a661-d830bee9a2ff
+
+		annotation SummarizationSetBy = Automatic
+
+	column settlement_batch_count
+		dataType: int64
+		sourceColumn: settlement_batch_count
+		lineageTag: 92fd0c20-f475-4ba2-88e8-7e6cabce3ac1
+
+		annotation SummarizationSetBy = Automatic
+
+	column matched_batch_count
+		dataType: int64
+		sourceColumn: matched_batch_count
+		lineageTag: 6f48b93f-6b60-41d9-b207-49dff349db95
+
+		annotation SummarizationSetBy = Automatic
+
+	column break_count
+		dataType: int64
+		sourceColumn: break_count
+		lineageTag: 7a72a209-b09b-4da6-a5b4-4903099542ca
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_expected_settlement_amount
+		dataType: double
+		formatString: \$#,0.00
+		sourceColumn: total_expected_settlement_amount
+		lineageTag: d9ed58fe-cdbc-401d-b392-40591984b40c
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_actual_cash_received
+		dataType: double
+		formatString: \$#,0.00
+		sourceColumn: total_actual_cash_received
+		lineageTag: 20e20b3e-0876-4252-aa5d-c0bffe26a55a
+
+		annotation SummarizationSetBy = Automatic
+
+	column unresolved_break_amount
+		dataType: double
+		formatString: \$#,0.00
+		sourceColumn: unresolved_break_amount
+		lineageTag: 81124759-bf79-4466-9839-1889be645380
+
+		annotation SummarizationSetBy = Automatic
+
+	column break_rate_count_basis
+		dataType: double
+		formatString: 0.00%
+		sourceColumn: break_rate_count_basis
+		lineageTag: ce7f8bfc-adc2-41d7-b7be-0d7558eef9a7
+
+		annotation SummarizationSetBy = Automatic
+
+	column break_rate_dollar_basis
+		dataType: double
+		formatString: 0.00%
+		sourceColumn: break_rate_dollar_basis
+		lineageTag: 36010e29-ec53-49c4-bb37-3c06faef0d88
+
+		annotation SummarizationSetBy = Automatic
+
+	column reconciliation_match_rate
+		dataType: double
+		formatString: 0.00%
+		sourceColumn: reconciliation_match_rate
+		lineageTag: 31efce6f-9ffc-47b1-909f-2a7d3e9f3b93
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fct_daily_cash_position = m
+		mode: directQuery
+		source =
+		let
+			Source = Databricks.Catalogs("dbc-08add949-9c19.cloud.databricks.com", "/sql/1.0/warehouses/59901b31d31db40a", [EnableAutostart=true]),
+			catalog_Database = Source{[Name="merchant_recon_project",Kind="Database"]}[Data],
+			schema_Schema = catalog_Database{[Name="gold",Kind="Schema"]}[Data],
+			table_Table = schema_Schema{[Name="fct_daily_cash_position",Kind="Table"]}[Data]
+		in
+			table_Table
+
+	annotation PBI_ResultType = Table

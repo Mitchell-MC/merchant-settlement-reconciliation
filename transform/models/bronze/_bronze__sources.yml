@@ -183,3 +183,13 @@ sources:
             tests: [not_null]
           - name: value
             tests: [not_null]
+
+      # fred_rates is deliberately NOT declared here yet. ingestion/fred_ingest.py
+      # requires a real FRED_API_KEY (no unauthenticated fallback -- see
+      # docs/source_contracts/fred.md), which isn't available in this
+      # environment. Adding a dbt source with column tests before the table
+      # physically exists in the live bronze schema would break `dbt build`
+      # in CI (source tests query the real table). Run fred_ingest.py once
+      # against a real key to land the table, THEN add the `fred_rates`
+      # source block here (same shape as `cpi_monthly` above) in a follow-up
+      # change.

@@ -3,10 +3,15 @@
 # repo only actually deploys dev: a second real environment means a second
 # real Databricks catalog/warehouse footprint, which is out of scope cost/
 # complexity for a portfolio project with one live workspace. This file is
-# the parameterization artifact the plan calls for; running
-# `terraform apply -var-file=environments/prod.tfvars` against this same
-# workspace would be safe (different catalog name = fully isolated
-# objects) if you did want to stand it up.
+# the parameterization artifact the plan calls for.
+#
+# DO NOT run `terraform apply -var-file=environments/prod.tfvars` against
+# this directory as-is -- it shares dev's Terraform state, so applying this
+# var-file replaces (destroys + recreates) the already-applied dev catalog/
+# schemas/volumes instead of provisioning a parallel environment. Verified
+# via `terraform plan` on 2026-07-11: 11 resources to destroy, including all
+# four schemas and both Bronze volumes. See infra/README.md's "Environments"
+# section for what a real fix (separate state per environment) would need.
 environment                = "prod"
 catalog_name                = "merchant_recon_project_prod"
 warehouse_size              = "Medium"

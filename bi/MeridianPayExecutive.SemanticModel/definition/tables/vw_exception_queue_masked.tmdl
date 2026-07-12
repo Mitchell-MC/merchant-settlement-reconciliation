@@ -1,0 +1,96 @@
+table vw_exception_queue_masked
+	lineageTag: c1024238-291f-4fe9-b958-132c4741effe
+
+	column merchant_token
+		dataType: string
+		isKey: true
+		sourceColumn: merchant_token
+		lineageTag: 611a8ea6-5fe3-4d1d-b747-4a5feb849608
+
+		annotation SummarizationSetBy = Automatic
+
+	column industry
+		dataType: string
+		sourceColumn: industry
+		lineageTag: c415869c-e8ef-4e43-af01-ec18abd42c4c
+
+		annotation SummarizationSetBy = Automatic
+
+	column region
+		dataType: string
+		sourceColumn: region
+		lineageTag: 7fc1b30f-f447-4e24-9783-286e4963d64c
+
+		annotation SummarizationSetBy = Automatic
+
+	column risk_tier
+		dataType: string
+		sourceColumn: risk_tier
+		lineageTag: fa66a275-0943-4af8-ad83-34cbfa7b2ee9
+
+		annotation SummarizationSetBy = Automatic
+
+	column batch_date
+		dataType: dateTime
+		formatString: Long Date
+		sourceColumn: batch_date
+		lineageTag: dd76f35e-aa9a-4523-9599-be68d2745d01
+
+		annotation SummarizationSetBy = Automatic
+
+	column aging_bucket
+		dataType: string
+		sourceColumn: aging_bucket
+		lineageTag: e01c7548-2ea8-499f-ace4-5abbf0d80afe
+
+		annotation SummarizationSetBy = Automatic
+
+	column severity
+		dataType: string
+		sourceColumn: severity
+		lineageTag: bc1a3983-806c-4fb9-91c9-9c8886a59aa9
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_cash_at_risk
+		dataType: boolean
+		sourceColumn: is_cash_at_risk
+		lineageTag: 828bda65-b323-444e-87d7-c641fc14d0bf
+
+		annotation SummarizationSetBy = Automatic
+
+	column suggested_owner_role
+		dataType: string
+		sourceColumn: suggested_owner_role
+		lineageTag: 0a79873f-19e6-4bc6-8c82-b03251a4d0df
+
+		annotation SummarizationSetBy = Automatic
+
+	column break_amount_rounded
+		dataType: double
+		formatString: \$#,0.00
+		sourceColumn: break_amount_rounded
+		lineageTag: b6eff7c1-4f21-4f30-841b-201c8315cd25
+
+		annotation SummarizationSetBy = Automatic
+
+	column funding_cost_estimate_rounded
+		dataType: double
+		formatString: \$#,0.00
+		sourceColumn: funding_cost_estimate_rounded
+		lineageTag: 6fc3a47e-153d-4f45-ad0d-afcf1e6638bd
+
+		annotation SummarizationSetBy = Automatic
+
+	partition vw_exception_queue_masked = m
+		mode: import
+		source =
+		let
+			Source = Databricks.Catalogs("dbc-08add949-9c19.cloud.databricks.com", "/sql/1.0/warehouses/59901b31d31db40a", [EnableAutostart=true]),
+			catalog_Database = Source{[Name="merchant_recon_project",Kind="Database"]}[Data],
+			schema_Schema = catalog_Database{[Name="gold",Kind="Schema"]}[Data],
+			table_Table = schema_Schema{[Name="vw_exception_queue_masked",Kind="Table"]}[Data]
+		in
+			table_Table
+
+	annotation PBI_ResultType = Table

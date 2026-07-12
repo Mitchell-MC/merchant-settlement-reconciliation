@@ -13,7 +13,7 @@ See [charter/PROJECT_CHARTER.md](charter/PROJECT_CHARTER.md) for the full busine
 ## Architecture at a glance
 
 ```
-FRPS / CBP / CPI (public macro reference data)     Synthetic operational data generator
+FRPS / CBP / CPI / FRED (public macro reference data)     Synthetic operational data generator
         |                                                    |
         v                                                    v
                     Bronze  (raw landed, immutable, lineage metadata)
@@ -45,8 +45,9 @@ Runs on Databricks (Unity Catalog, AWS). Infrastructure is Terraform-managed; tr
 | [transform/](transform/) | dbt-databricks project — Bronze/Silver/Gold models, tests, reconciliation logic |
 | [infra/](infra/) | Terraform — Unity Catalog, warehouse, RBAC groups/grants, the daily reconciliation job |
 | [.github/workflows/](.github/workflows/) | CI (`ci.yml`) and CD (`cd.yml`) pipelines; `.github/ci/` holds the CI-only dbt profile |
-| [bi/](bi/) | Executive dashboard (live, real data) and the Power BI connection guide (documented) |
+| [bi/](bi/) | Executive dashboard (live, real data); `MeridianPayExecutive.pbip` Power BI Project (real TMDL semantic model + report shell, not yet opened in Desktop — see [bi/power_bi_connection_guide.md](bi/power_bi_connection_guide.md) for status) |
 | [scripts/](scripts/) | Operational scripts (segment-weight derivation, workspace sync) |
+| [tests/](tests/) | Pytest unit tests for `data_generation/`, `ingestion/`, and `common/` (holiday/business-day math, lineage hashing, weight sanity checks, response parsing) |
 
 ## Status
 

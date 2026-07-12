@@ -1,0 +1,17 @@
+relationship cbfe7dcf-d8c5-4c5f-b15d-c0498847eb85
+	fromCardinality: many
+	toCardinality: one
+	fromColumn: fct_daily_cash_position.batch_date
+	toColumn: dim_date.date_day
+
+relationship de030321-5515-4008-8753-283be6aa65a4
+	fromCardinality: many
+	toCardinality: one
+	fromColumn: fct_reconciliation_breaks.merchant_id
+	toColumn: dim_merchant.merchant_id
+
+relationship c52c911b-4a1a-437e-8ea8-f742d0d3c1dd
+	fromCardinality: one
+	toCardinality: one
+	fromColumn: fct_merchant_exception_trends.merchant_id
+	toColumn: dim_merchant.merchant_id
