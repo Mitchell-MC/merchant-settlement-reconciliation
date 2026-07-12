@@ -6,7 +6,7 @@ Grounded in what actually happened building this, not a rehearsed narrative. See
 
 "Anyone who processes third-party payouts — payment facilitators, marketplaces, gig platforms — has to answer one question every day: did the money that was supposed to move actually move, and if not, how much is at risk? I built the platform that answers that question end-to-end: business framing, a reconciliation engine, data quality gates, governance, IaC, CI/CD, and a live executive dashboard — against a real Databricks workspace, not a local mock."
 
-Why this problem, specifically: it's the natural complement to my other portfolio project (real-time fraud/AML streaming). Together they show I understand *when* batch is architecturally correct (settlement reconciles against a bank statement that posts once a day — there's no "real-time" version of that) versus when streaming is (fraud scoring needs sub-second decisions). Picking the right architecture for the problem, not defaulting to one pattern everywhere, is the actual point of having two projects instead of one bigger one.
+Why this problem, specifically: it's a universal fintech need with a clear-cut architecture answer. Settlement reconciles against a bank statement that posts once a day — there's no "real-time" version of that — so batch is architecturally correct here, not a default reached for out of habit. Picking the right architecture for the problem, rather than defaulting to one pattern everywhere, is the actual point.
 
 ## Design tradeoffs (the ones worth defending)
 

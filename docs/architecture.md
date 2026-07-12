@@ -66,7 +66,7 @@ flowchart TB
 
 ## Why batch, not streaming
 
-Settlement reconciliation is inherently a T+1/T+2 problem: you're reconciling against a bank statement that posts once a day, not a real-time event stream. The companion project ([Fintech_project](../../Fintech_project), fraud/AML) is the streaming half of this portfolio — together they show *when* batch is the right architecture versus when streaming is, rather than defaulting to one pattern everywhere.
+Settlement reconciliation is inherently a T+1/T+2 problem: you're reconciling against a bank statement that posts once a day, not a real-time event stream. Batch is the architecturally correct choice for this problem, rather than a default reached for out of habit.
 
 ## Layer responsibilities
 

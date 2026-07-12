@@ -2,7 +2,7 @@
 
 A production-styled, Databricks-based reconciliation platform for a fictional SMB payment facilitator ("Meridian Pay"). It matches expected merchant settlement obligations against actual bank cash movement, surfaces unresolved breaks and their aging, and gives finance/treasury daily, auditable cash visibility.
 
-This is the **batch reconciliation** half of a two-project fintech data engineering portfolio. The companion project, [Fintech_project](../Fintech_project), is the **real-time streaming** half (fraud/AML detection). Together they demonstrate after-the-fact financial audit versus real-time defense — the two core patterns in fintech data engineering.
+This is a **batch reconciliation** platform, a deliberate architectural choice rather than a default: settlement reconciles against a bank statement that posts once a day, so there's no real-time version of "did the money move." The design demonstrates when batch is the architecturally correct answer, instead of defaulting to streaming for every problem.
 
 ## Why this exists
 
