@@ -43,3 +43,9 @@ ingestion/_downloads/
 Thumbs.db
 .vscode/
 .idea/
+
+# Personal interview-prep / demo materials (rehearsal notes, not shared repo content)
+demo-scripts/
+demo_scripts/
+star-talking-points*
+star_talking_points*

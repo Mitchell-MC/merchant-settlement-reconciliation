@@ -38,7 +38,7 @@ This project builds the data platform that gives Meridian's finance and treasury
 
 **In scope:**
 - Daily batch reconciliation (not real-time/streaming — settlement reconciles against a bank statement that posts once a day, so there is no real-time version of this problem).
-- Synthetic operational data (transactions, settlement batches, fees, reserves, returns, bank postings) generated deterministically, informed by real macro/reference data (FRPS, CBP, CPI, FRED) for realism.
+- Synthetic operational data (transactions, settlement batches, fees, reserves, returns, bank postings) generated deterministically, informed by real macro/reference data (FRPS, CBP, CPI, FRED).
 - Production-readiness controls: data quality gates, RBAC design, IaC, CI/CD, observability.
 
 **Out of scope:**
@@ -46,13 +46,10 @@ This project builds the data platform that gives Meridian's finance and treasury
 - Full enterprise IAM federation (SSO/SCIM) — RBAC is modeled at the Databricks Unity Catalog level only.
 - True real-time stream processing — this is a batch reconciliation platform by design (see Scope boundaries above).
 
-## 5. Interview narratives
-
-### 2-minute version
+## 5. Skills demonstrated
 "I built a batch reconciliation platform for a fictional SMB payment processor — think of it as the finance-side discipline of knowing exactly where every dollar is, every day. Every day, a payment processor owes thousands of merchants money, and the bank doesn't always pay out exactly what the ledger expects, on exactly the day expected. I generated realistic synthetic settlement data — transactions, batches, fees, reserve holds, bank postings — with deliberately injected timing breaks like weekend lag and reserve delays, then built a Databricks lakehouse with a medallion architecture and a reconciliation engine that matches expected settlement to actual cash within amount and date tolerances. The Gold layer surfaces daily cash position, unresolved breaks, break aging, and a funding-cost estimate — the exact numbers a CFO or treasurer would need. I treated it like a real production system: dbt-style tested models, data quality gates that block bad data from reaching the Gold layer, Terraform-provisioned infrastructure, CI/CD with staged deploys, and a documented RBAC model separating treasury, finance, and engineering access."
 
-### 5-minute version
-Extends the above with:
+
 - **Why this design:** reconciliation is a universal fintech problem — anyone processing third-party payouts (marketplaces, payment facilitators, gig platforms) has this exact break-detection and cash-visibility need. I chose batch over streaming here deliberately, because settlement reconciliation is inherently a T+1/T+2 problem — you're reconciling against a bank statement that posts once a day, not a real-time event stream. Picking the architecture that fits the problem, rather than defaulting to streaming everywhere, is itself the point.
 - **Design tradeoffs:** amount-and-date-window tolerance matching versus exact-match — exact match sounds cleaner but produces false breaks from routine timing noise (weekend ACH lag, bank cut-off times), which would bury real breaks in noise. I made the tolerance policy a first-class, documented, testable contract rather than a magic number buried in a query.
 - **Production readiness outcomes:** what's actually gated in CI (dbt tests, Terraform plan, data quality thresholds), what the RBAC matrix enforces, what the incident runbook covers (late data, failed tests, SLA breach).

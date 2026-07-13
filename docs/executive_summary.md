@@ -42,4 +42,4 @@ Every dollar in the Gold layer traces exactly back to Bronze — verified live, 
 4. Multi-currency support.
 5. Real distinct human identities in the RBAC groups via SSO/SCIM (currently structurally correct but unpopulated — see [rbac_access_matrix.md](rbac_access_matrix.md)).
 
-See [charter/PROJECT_CHARTER.md](../charter/PROJECT_CHARTER.md) for the full business framing and [interview_prep.md](interview_prep.md) for detailed talking points on design tradeoffs.
+See [charter/PROJECT_CHARTER.md](../charter/PROJECT_CHARTER.md) for the full business framing.

@@ -51,7 +51,7 @@ Runs on Databricks (Unity Catalog, AWS). Infrastructure is Terraform-managed; tr
 
 ## Status
 
-All 9 phases complete. See [docs/executive_summary.md](docs/executive_summary.md) for a one-page summary, [docs/architecture.md](docs/architecture.md) for where each phase's output lives, and [docs/interview_prep.md](docs/interview_prep.md) for design-tradeoff talking points and real bugs found/fixed during the build.
+All 9 phases complete. See [docs/executive_summary.md](docs/executive_summary.md) for a one-page summary and [docs/architecture.md](docs/architecture.md) for where each phase's output lives.
 
 ## Scope boundaries
 

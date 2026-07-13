@@ -94,4 +94,4 @@ Only `dev` is deployed (one live Databricks workspace). `infra/environments/prod
 | 6 — Governance | [docs/rbac_access_matrix.md](rbac_access_matrix.md), [docs/data_governance.md](data_governance.md) |
 | 7 — IaC | [infra/](../infra/) |
 | 8 — CI/CD | [.github/workflows/](../.github/workflows/), [docs/release_runbook.md](release_runbook.md) |
-| 9 — BI + packaging | [bi/](../bi/), this document, [docs/executive_summary.md](executive_summary.md), [docs/interview_prep.md](interview_prep.md) |
+| 9 — BI + packaging | [bi/](../bi/), this document, [docs/executive_summary.md](executive_summary.md) |

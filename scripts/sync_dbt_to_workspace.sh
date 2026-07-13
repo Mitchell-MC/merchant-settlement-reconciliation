@@ -7,5 +7,5 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # MSYS_NO_PATHCONV: Git Bash otherwise rewrites the leading-slash workspace
-# path as a Windows filesystem path (see docs/interview_prep.md's gotcha list).
+# path as a Windows filesystem path.
 MSYS_NO_PATHCONV=1 databricks sync --full transform /Shared/merchant_reconciliation/transform --profile meridian-dev
