@@ -1,6 +1,15 @@
 -- Gold: daily trend of expected vs. actual cash, and the KPI contract's
 -- rate-based metrics (docs/kpi_contract.md #1, #2, #4, #8), grain = batch_date.
+{#- Snowflake's default CREATE OR REPLACE TABLE drops existing grants on
+   rebuild, unlike Unity Catalog -- copy_grants preserves the
+   Terraform-managed treasury_viewers/bi_consumers SELECT grants
+   (infra_snowflake/grants.tf) across every dbt run. Confirmed by testing:
+   without this, a single rebuild silently wiped those grants. #}
+{% if target.type == 'snowflake' %}
+{{ config(materialized='table', copy_grants=true) }}
+{% else %}
 {{ config(materialized='table') }}
+{% endif %}
 
 select
     batch_date,

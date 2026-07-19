@@ -24,12 +24,17 @@ federal_holidays as (
 flagged as (
     select
         cast(date_day as date) as date_day,
-        dayofweek(date_day) as day_of_week_num,   -- 1=Sunday .. 7=Saturday (Databricks default)
+        -- dayofweek()'s numbering is adapter-native and NOT compared across
+        -- platforms: Databricks/Spark returns 1=Sunday..7=Saturday, Snowflake
+        -- returns 0=Sunday..6=Saturday. Only the derived is_weekend/
+        -- is_business_day booleans below need to be correct per platform --
+        -- nothing downstream reads day_of_week_num's raw value.
+        dayofweek(date_day) as day_of_week_num,
         dayname(date_day) as day_name,
-        case when dayofweek(date_day) in (1, 7) then true else false end as is_weekend,
+        case when dayofweek(date_day) in {{ "(0, 6)" if target.type == "snowflake" else "(1, 7)" }} then true else false end as is_weekend,
         case when h.holiday_date is not null then true else false end as is_federal_holiday,
         case
-            when dayofweek(date_day) not in (1, 7) and h.holiday_date is null then true
+            when dayofweek(date_day) not in {{ "(0, 6)" if target.type == "snowflake" else "(1, 7)" }} and h.holiday_date is null then true
             else false
         end as is_business_day,
         year(date_day) as year,

@@ -72,7 +72,7 @@ candidates as (
         p.posting_date,
         p.amount as posting_amount,
         abs(p.amount - b.expected_settlement_amount) as amount_diff,
-        abs(datediff(p.posting_date, b.expected_payout_date)) as date_diff
+        abs({{ dbt.datediff('b.expected_payout_date', 'p.posting_date', 'day') }}) as date_diff
     from batch_with_window b
     join postings p
         on p.merchant_id = b.merchant_id
@@ -103,14 +103,19 @@ single_matches as (
         merchant_id,
         expected_settlement_amount,
         posting_amount as matched_amount,
-        array(posting_id) as matched_posting_ids,
+        {{ "array_construct(posting_id)" if target.type == "snowflake" else "array(posting_id)" }} as matched_posting_ids,
         'single_match' as match_method
     from ranked
     where batch_rank = 1 and posting_rank = 1
 ),
 
 claimed_postings as (
+{% if target.type == "snowflake" %}
+    select f.value::string as posting_id
+    from single_matches, lateral flatten(input => matched_posting_ids) f
+{% else %}
     select posting_id from single_matches lateral view explode(matched_posting_ids) t as posting_id
+{% endif %}
 ),
 
 unmatched_batches as (
@@ -127,7 +132,7 @@ split_candidates as (
         max(c.expected_settlement_amount) as expected_settlement_amount,
         max(c.amount_tolerance) as amount_tolerance,
         sum(c.posting_amount) as summed_amount,
-        collect_list(c.posting_id) as posting_ids,
+        {{ "array_agg(c.posting_id)" if target.type == "snowflake" else "collect_list(c.posting_id)" }} as posting_ids,
         count(*) as posting_count
     from candidates c
     join unmatched_batches ub on ub.settlement_batch_id = c.settlement_batch_id
@@ -156,10 +161,17 @@ split_matches_raw as (
 -- claimed postings is fully invalidated (falls through to breaks) rather
 -- than partially matched.
 split_matches_exploded as (
+{% if target.type == "snowflake" %}
+    select sm.settlement_batch_id, bw.batch_date, f.value::string as posting_id
+    from split_matches_raw sm
+    join batch_with_window bw on bw.settlement_batch_id = sm.settlement_batch_id
+    , lateral flatten(input => sm.matched_posting_ids) f
+{% else %}
     select sm.settlement_batch_id, bw.batch_date, posting_id
     from split_matches_raw sm
     join batch_with_window bw on bw.settlement_batch_id = sm.settlement_batch_id
     lateral view explode(sm.matched_posting_ids) t as posting_id
+{% endif %}
 ),
 
 posting_winner as (
@@ -207,7 +219,7 @@ breaks as (
         ub.merchant_id,
         ub.expected_settlement_amount,
         be.closest_posting_amount as matched_amount,
-        case when be.closest_posting_id is not null then array(be.closest_posting_id) else array() end as matched_posting_ids,
+        case when be.closest_posting_id is not null then {{ "array_construct(be.closest_posting_id)" if target.type == "snowflake" else "array(be.closest_posting_id)" }} else {{ "array_construct()" if target.type == "snowflake" else "array()" }} end as matched_posting_ids,
         case when be.closest_posting_id is not null then 'unmatched_closest_candidate' else 'missing_posting' end as match_method
     from unmatched_batches ub
     left join best_effort_for_breaks be on be.settlement_batch_id = ub.settlement_batch_id and be.rn = 1
@@ -222,7 +234,7 @@ select
     b.window_end_date,
     b.expected_settlement_amount,
     coalesce(m.matched_amount, br.matched_amount) as actual_cash_received,
-    coalesce(m.matched_posting_ids, br.matched_posting_ids, array()) as matched_posting_ids,
+    coalesce(m.matched_posting_ids, br.matched_posting_ids, {{ "array_construct()" if target.type == "snowflake" else "array()" }}) as matched_posting_ids,
     coalesce(m.match_method, br.match_method) as match_method,
     case when m.settlement_batch_id is not null then true else false end as is_matched
 from batch_with_window b

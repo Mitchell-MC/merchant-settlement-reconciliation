@@ -7,6 +7,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
+from pathlib import Path
+
+# Anchored to the repo root (not CWD-relative) so output always lands at
+# data/bronze and data/generated regardless of the invoking shell's cwd --
+# matches the PROJECT_ROOT pattern every ingestion/*.py script already uses.
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 @dataclass(frozen=True)
@@ -105,7 +111,7 @@ class GenerationConfig:
     segments: SegmentWeights = field(default_factory=SegmentWeights)
     breaks: BreakInjectionRates = field(default_factory=BreakInjectionRates)
 
-    output_dir: str = "data/bronze"
-    ground_truth_dir: str = "data/generated"
+    output_dir: str = str(_PROJECT_ROOT / "data" / "bronze")
+    ground_truth_dir: str = str(_PROJECT_ROOT / "data" / "generated")
 
     source_system: str = "synthetic_ops_generator"

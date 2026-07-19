@@ -51,6 +51,56 @@ GRANT SELECT ON VIEW merchant_recon_project.gold.vw_exception_queue_masked TO `r
 
 Schema-level `SELECT` grants (e.g. on `silver`) cascade to all current and future tables in that schema — a new Silver model doesn't need a manual grant added.
 
+## Snowflake retarget: same matrix, same verification discipline
+
+This is also implemented and verified, not aspirational, against the live Snowflake account `DZVUEJF-DF04786`. Four account roles (`RECON_ENGINEERING`, `RECON_TREASURY_VIEWERS`, `RECON_FINANCE_ANALYSTS`, `RECON_BI_CONSUMERS`) reproduce the exact same matrix above via [infra_snowflake/grants.tf](../infra_snowflake/grants.tf) -- see [infra_snowflake/README.md](../infra_snowflake/README.md) for the mechanical differences (Snowflake needs an `ALL` + `FUTURE` grant pair where Databricks' schema-level `SELECT` cascades on its own; explicit warehouse `USAGE`; no `storage_root`-style drift gotcha).
+
+Role name mapping (Databricks group -> Snowflake role):
+
+| Databricks group | Snowflake role |
+|---|---|
+| `recon_engineering` | `RECON_ENGINEERING` |
+| `recon_treasury_viewers` | `RECON_TREASURY_VIEWERS` |
+| `recon_finance_analysts` | `RECON_FINANCE_ANALYSTS` |
+| `recon_bi_consumers` | `RECON_BI_CONSUMERS` |
+
+Verified via `SHOW GRANTS TO ROLE <x>` / `SHOW GRANTS ON <object>` against the live account:
+
+```
+-- RECON_TREASURY_VIEWERS
+USAGE   DATABASE  MERCHANT_RECON_PROJECT_DEV
+USAGE   SCHEMA    MERCHANT_RECON_PROJECT_DEV.GOLD
+USAGE   WAREHOUSE BI_WH
+SELECT  TABLE     MERCHANT_RECON_PROJECT_DEV.GOLD.FCT_DAILY_CASH_POSITION
+SELECT  TABLE     MERCHANT_RECON_PROJECT_DEV.GOLD.FCT_FUNDING_COST_SUMMARY
+
+-- RECON_BI_CONSUMERS
+USAGE   DATABASE  MERCHANT_RECON_PROJECT_DEV
+USAGE   SCHEMA    MERCHANT_RECON_PROJECT_DEV.GOLD
+USAGE   WAREHOUSE BI_WH
+SELECT  TABLE     MERCHANT_RECON_PROJECT_DEV.GOLD.FCT_DAILY_CASH_POSITION
+SELECT  TABLE     MERCHANT_RECON_PROJECT_DEV.GOLD.FCT_FUNDING_COST_SUMMARY
+SELECT  VIEW      MERCHANT_RECON_PROJECT_DEV.GOLD.VW_EXCEPTION_QUEUE_MASKED   -- and ONLY this role
+
+-- RECON_FINANCE_ANALYSTS
+USAGE   DATABASE  MERCHANT_RECON_PROJECT_DEV
+USAGE   SCHEMA    MERCHANT_RECON_PROJECT_DEV.SILVER
+USAGE   SCHEMA    MERCHANT_RECON_PROJECT_DEV.GOLD
+SELECT  TABLE     (every table in SILVER and GOLD, via ALL + FUTURE schema grants)
+
+-- RECON_ENGINEERING
+ALL PRIVILEGES  DATABASE  MERCHANT_RECON_PROJECT_DEV
+ALL PRIVILEGES  SCHEMA    BRONZE / SILVER / GOLD / OPS (each)
+OWNERSHIP       every table/view it (via dbt) created
+READ, WRITE     STAGE     BRONZE.BRONZE_LANDING
+```
+
+### A real gotcha this verification pass caught: grants silently wiped on rebuild
+
+`SHOW GRANTS` first came back **missing** the treasury/bi_consumers SELECT grants and the masked-view grant entirely, despite Terraform reporting them applied successfully. Root cause: Snowflake's default `CREATE OR REPLACE TABLE`/`VIEW` (what dbt's table/view materializations compile to) **drops all existing grants on the object** when it's rebuilt -- unlike Unity Catalog, where a dbt-rebuilt table keeps its ACLs. A `dbt build` run *after* the Terraform grants were applied silently reset them back to just the owner's (`RECON_ENGINEERING`) privileges.
+
+Fixed with `copy_grants=true` on the three affected models' `config()` (Snowflake-only, via a `{% if target.type == 'snowflake' %}` branch so Databricks is unaffected) -- see `transform/models/gold/fct_daily_cash_position.sql`, `fct_funding_cost_summary.sql`, `vw_exception_queue_masked.sql`. Verified the fix by rebuilding twice in a row and re-running `SHOW GRANTS` after each: the treasury/bi_consumers/masked-view grants now survive every rebuild. This is a real, non-obvious cross-platform behavioral difference worth knowing before trusting any Terraform-managed grant on a dbt-owned Snowflake object.
+
 ## Governance gap found during verification -- fixed by adopting Terraform
 
 `SHOW GRANTS ON CATALOG merchant_recon_project` originally also listed an auto-created group `_workspace_users_merchant_recon_project_<id>` with blanket `USE CATALOG`, generated automatically when the catalog was created via Express workspace setup — every workspace user had baseline catalog visibility, bypassing the tiered model above at the `USE CATALOG` level.

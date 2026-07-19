@@ -11,6 +11,7 @@ transform/target/
 transform/dbt_packages/
 transform/logs/
 transform/.user.yml
+**/.user.yml
 transform/profiles.yml
 transform/.databricks/
 
@@ -22,11 +23,19 @@ infra/**/*.tfplan
 infra/**/terraform.tfvars
 infra/**/*.auto.tfvars
 
+infra_snowflake/**/.terraform/
+infra_snowflake/**/*.tfstate
+infra_snowflake/**/*.tfstate.backup
+infra_snowflake/**/*.tfplan
+infra_snowflake/**/terraform.tfvars
+infra_snowflake/**/*.auto.tfvars
+
 # Secrets / local config
 .env
 .env.*
 *.pem
 *.key
+*.p8
 databricks.cfg
 .databrickscfg
 

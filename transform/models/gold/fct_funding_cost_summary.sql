@@ -1,7 +1,12 @@
 -- Gold: as-of-report_date summary of cash-at-risk and funding cost by
 -- merchant segment (docs/kpi_contract.md #6, #7) -- the numbers Treasury
 -- uses to size credit-line draws.
+{#- see fct_daily_cash_position.sql for why copy_grants is needed here on Snowflake #}
+{% if target.type == 'snowflake' %}
+{{ config(materialized='table', copy_grants=true) }}
+{% else %}
 {{ config(materialized='table') }}
+{% endif %}
 
 select
     report_date,

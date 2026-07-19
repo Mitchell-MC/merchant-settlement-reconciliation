@@ -1,0 +1,67 @@
+name: Snowflake Daily Reconciliation
+
+# Snowflake equivalent of infra/jobs.tf's databricks_job.daily_reconciliation
+# -- Snowflake Terraform has no job/task resource for running dbt on a
+# schedule (see infra_snowflake/README.md), so scheduling lives here
+# instead. Runs alongside (not instead of) .github/workflows/cd.yml's
+# Databricks pipeline during the parallel-run/cutover period -- see
+# docs/snowflake_migration_plan.md.
+#
+# Bronze reload is deliberately NOT part of this workflow, same division
+# of responsibility as cd.yml's dbt-deploy job (which also only runs dbt
+# commands, no data generation step): this repo treats Bronze population
+# as a separate, manual/on-demand step -- see
+# scripts/load_bronze_to_snowflake.py -- not something the daily
+# transform job re-runs.
+#
+# Paused-by-default equivalent: the scheduled trigger is a no-op unless
+# the `SNOWFLAKE_DAILY_ENABLED` repository variable is set to "true" --
+# mirrors infra/jobs.tf's `pause_status = "PAUSED"` (turning it on is a
+# deliberate, reviewable step: Settings -> Secrets and variables ->
+# Actions -> Variables, not a side effect of merging this file).
+# workflow_dispatch always runs regardless, for manual smoke-testing.
+#
+# Setup required before this can actually run green:
+#   - Repo secret SNOWFLAKE_CI_PRIVATE_KEY: the RECON_CI_SVC service
+#     user's PEM private key text (see infra_snowflake/service_user.tf --
+#     its public key is Terraform-managed, the private key is not and
+#     never should be). Verified locally with:
+#       SNOWFLAKE_CI_PRIVATE_KEY="$(cat ~/.snowflake/keys/recon_ci_svc_rsa_key.p8)" \
+#       DBT_PROFILES_DIR=.github/ci_snowflake dbt build --target ci_snowflake
+#   - Repo variable SNOWFLAKE_DAILY_ENABLED = "true", once ready to let
+#     the schedule actually fire.
+
+on:
+  schedule:
+    # 10:00 UTC ~= 06:00 America/New_York (EST) -- same hour of buffer
+    # before the 07:00 Gold-publish SLA as the Databricks job. NOTE: this
+    # is a fixed UTC cron, so it drifts an hour during EDT (DST) -- an
+    # accepted, documented limitation, not fixed here either (matches how
+    # precisely infra/jobs.tf's own quartz cron timezone handling is
+    # treated: good enough for a portfolio project's SLA demonstration,
+    # not production-grade DST handling).
+    - cron: "0 10 * * *"
+  workflow_dispatch: {}
+
+env:
+  SNOWFLAKE_ACCOUNT: "DZVUEJF-DF04786"
+  SNOWFLAKE_CI_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_CI_PRIVATE_KEY }}
+
+jobs:
+  dbt-build:
+    if: github.event_name == 'workflow_dispatch' || vars.SNOWFLAKE_DAILY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: transform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "dbt-snowflake>=1.8,<2.0"
+      - run: dbt deps
+      - name: dbt build (seeds + models + tests) against Snowflake
+        env:
+          DBT_PROFILES_DIR: ../.github/ci_snowflake
+        run: dbt build --target ci_snowflake

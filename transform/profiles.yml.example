@@ -1,6 +1,11 @@
 # Copy to transform/profiles.yml (gitignored) and fill in your workspace values.
-# No secrets belong in this file -- auth_type: oauth triggers an interactive
-# browser login on first dbt command; the token is cached in your OS keychain.
+# No secrets belong in this file -- `dev`'s auth_type: oauth triggers an
+# interactive browser login on first dbt command (token cached in your OS
+# keychain); `snowflake`'s private_key_path points outside the repo (see
+# infra_snowflake/README.md) and holds no key material itself.
+#
+# `dev` (Databricks) stays the default target during the Snowflake parallel
+# run -- select Snowflake explicitly with `dbt build --target snowflake`.
 merchant_reconciliation:
   target: dev
   outputs:
@@ -11,4 +16,15 @@ merchant_reconciliation:
       host: "<your-workspace>.cloud.databricks.com"
       http_path: "/sql/1.0/warehouses/<warehouse-id>"
       auth_type: oauth
+      threads: 4
+
+    snowflake:
+      type: snowflake
+      account: "<org-name>-<account-name>"
+      user: "<user>"
+      role: RECON_ENGINEERING
+      database: MERCHANT_RECON_PROJECT_DEV
+      warehouse: TRANSFORM_WH
+      schema: SILVER
+      private_key_path: "/absolute/path/to/.snowflake/keys/<user>_rsa_key.p8"  # dbt-snowflake does NOT expand ~
       threads: 4

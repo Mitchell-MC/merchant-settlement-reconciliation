@@ -6,7 +6,7 @@
 
 {% macro create_run_telemetry_table() %}
     {% set ddl %}
-        create table if not exists merchant_recon_project.ops.dbt_run_telemetry (
+        create table if not exists {{ target.database }}.ops.dbt_run_telemetry (
             invocation_id string,
             run_started_at timestamp,
             node_name string,
@@ -39,7 +39,7 @@
             ) %}
         {% endfor %}
         {% set insert_sql %}
-            insert into merchant_recon_project.ops.dbt_run_telemetry
+            insert into {{ target.database }}.ops.dbt_run_telemetry
             (invocation_id, run_started_at, node_name, node_resource_type, status, execution_time_seconds, rows_affected, message)
             values {{ value_rows | join(', ') }}
         {% endset %}

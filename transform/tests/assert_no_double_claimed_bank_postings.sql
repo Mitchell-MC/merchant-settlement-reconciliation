@@ -6,10 +6,16 @@
 -- nearby unresolved breaks can legitimately all point to as their best
 -- guess; that's not a claim, so it's expected and fine for those to overlap.
 with exploded as (
+{% if target.type == "snowflake" %}
+    select settlement_batch_id, f.value::string as posting_id
+    from {{ ref('int_reconciliation_matches') }}, lateral flatten(input => matched_posting_ids) f
+    where is_matched = true
+{% else %}
     select settlement_batch_id, posting_id
     from {{ ref('int_reconciliation_matches') }}
     lateral view explode(matched_posting_ids) t as posting_id
     where is_matched = true
+{% endif %}
 )
 select posting_id, count(distinct settlement_batch_id) as claim_count
 from exploded

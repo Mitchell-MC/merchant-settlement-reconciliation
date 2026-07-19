@@ -23,6 +23,8 @@ flowchart TB
 
     ING --> BRONZE
     GENPY --> BRONZE
+    ING --> SFSTAGE
+    GENPY --> SFSTAGE
 
     subgraph Lakehouse["Databricks / Unity Catalog — merchant_recon_project"]
         BRONZE[("Bronze<br/>raw, immutable, lineage metadata")]
@@ -40,28 +42,54 @@ flowchart TB
     GOLD --> DASH["Executive / Ops dashboard<br/>(bi/executive_dashboard.html)"]
     GOLD --> PBI["Power BI<br/>(bi/power_bi_connection_guide.md)"]
 
+    subgraph SFLakehouse["Snowflake — MERCHANT_RECON_PROJECT_DEV (parallel run)"]
+        SFSTAGE[("BRONZE_LANDING<br/>internal stage, PUT + COPY INTO<br/>scripts/load_bronze_to_snowflake.py")]
+        SFBRONZE[("Bronze<br/>same lineage contract")]
+        SFSILVER[("Silver<br/>same conformed entities")]
+        SFENGINE{"Same reconciliation engine<br/>(3 Spark-only spots rewritten<br/>via target.type Jinja)"}
+        SFGOLD[("Gold<br/>same marts, same KPI formulas")]
+        SFOPS[("ops<br/>same telemetry tables")]
+    end
+
+    SFSTAGE -->|COPY INTO| SFBRONZE
+    SFBRONZE -->|dbt --target snowflake| SFSILVER
+    SFSILVER --> SFENGINE
+    SFENGINE --> SFGOLD
+    SFGOLD -.->|on-run-end hook| SFOPS
+    SFGOLD --> PBI
+
+    GOLD -.->|compare by run_id / as_of_date<br/>docs/snowflake_migration_plan.md| SFGOLD
+
     subgraph Governance["Governance"]
-        RBAC["4 RBAC groups<br/>engineering / finance / treasury / BI"]
-        MASK["vw_exception_queue_masked<br/>sha2 pseudonymization"]
+        RBAC["4 RBAC groups (Databricks)<br/>4 account roles (Snowflake)<br/>engineering / finance / treasury / BI"]
+        MASK["vw_exception_queue_masked<br/>sha2 pseudonymization, both platforms"]
     end
     RBAC -.->|GRANT| BRONZE
     RBAC -.->|GRANT| SILVER
     RBAC -.->|GRANT| GOLD
+    RBAC -.->|GRANT| SFLakehouse
     GOLD --> MASK
+    SFGOLD --> MASK
 
     subgraph Ops["Operate"]
         JOB["Databricks Job<br/>daily 06:00 ET, serverless<br/>paused by default"]
         CICD["GitHub Actions<br/>ci.yml -> cd.yml -> schedule activation"]
+        SFCRON["GitHub Actions<br/>snowflake_daily.yml<br/>cron-gated by repo variable"]
     end
     JOB -->|dbt build| BRONZE
     CICD --> JOB
+    SFCRON -->|dbt build --target snowflake| SFBRONZE
 
     subgraph IaC["Infrastructure as Code"]
-        TF["Terraform<br/>catalog · schemas · warehouse<br/>groups · grants · job"]
+        TF["Terraform (infra/)<br/>catalog · schemas · warehouse<br/>groups · grants · job"]
+        SFTF["Terraform (infra_snowflake/)<br/>database · schemas · warehouses<br/>roles · grants · stage · service user<br/>separate state, never shares infra/'s"]
     end
     TF -.->|manages| Lakehouse
     TF -.->|manages| RBAC
     TF -.->|manages| JOB
+    SFTF -.->|manages| SFLakehouse
+    SFTF -.->|manages| RBAC
+    SFTF -.->|manages| SFCRON
 ```
 
 ## Why batch, not streaming
@@ -80,7 +108,13 @@ Settlement reconciliation is inherently a T+1/T+2 problem: you're reconciling ag
 
 ## Environments
 
-Only `dev` is deployed (one live Databricks workspace). `infra/environments/prod.tfvars` parameterizes what a second environment would look like (separate catalog, larger warehouse) without provisioning a real duplicate footprint — see [infra/README.md](../infra/README.md).
+Only `dev` is deployed on Databricks (one live workspace). `infra/environments/prod.tfvars` parameterizes what a second environment would look like (separate catalog, larger warehouse) without provisioning a real duplicate footprint — see [infra/README.md](../infra/README.md).
+
+The Snowflake retarget follows the identical posture: only `dev` (`MERCHANT_RECON_PROJECT_DEV`) is applied, `infra_snowflake/environments/prod.tfvars` is documented-only — see [infra_snowflake/README.md](../infra_snowflake/README.md).
+
+## Snowflake retarget
+
+A full second implementation of this platform on Snowflake runs in parallel with the Databricks one above — see [docs/snowflake_migration_plan.md](snowflake_migration_plan.md) for the migration plan, the non-obvious differences it surfaced (no real Bronze load mechanism existed to "redirect," Spark-only SQL that silently changes meaning on Snowflake, grants that get wiped on table rebuild), and the parallel-run/cutover checklist. `infra/` and `infra_snowflake/` are fully separate Terraform stacks with no shared state, by design.
 
 ## Where each phase's output lives
 
@@ -95,3 +129,4 @@ Only `dev` is deployed (one live Databricks workspace). `infra/environments/prod
 | 7 — IaC | [infra/](../infra/) |
 | 8 — CI/CD | [.github/workflows/](../.github/workflows/), [docs/release_runbook.md](release_runbook.md) |
 | 9 — BI + packaging | [bi/](../bi/), this document, [docs/executive_summary.md](executive_summary.md) |
+| Snowflake retarget | [infra_snowflake/](../infra_snowflake/), [docs/snowflake_migration_plan.md](snowflake_migration_plan.md), [scripts/load_bronze_to_snowflake.py](../scripts/load_bronze_to_snowflake.py) |

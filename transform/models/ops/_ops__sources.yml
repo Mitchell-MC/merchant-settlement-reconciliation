@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: ops
-    database: merchant_recon_project
+    database: "{{ target.database }}"
     schema: ops
     description: >
       Observability tables written outside the normal model DAG -- the

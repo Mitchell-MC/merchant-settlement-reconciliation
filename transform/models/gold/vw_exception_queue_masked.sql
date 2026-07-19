@@ -3,7 +3,12 @@
 -- can see break volume/severity/aging trends by industry and region without
 -- seeing which specific named merchant is having payment problems, which is
 -- sensitive commercial information about that merchant's business health.
+{#- see fct_daily_cash_position.sql for why copy_grants is needed here on Snowflake (applies to CREATE OR REPLACE VIEW too) #}
+{% if target.type == 'snowflake' %}
+{{ config(materialized='view', copy_grants=true) }}
+{% else %}
 {{ config(materialized='view') }}
+{% endif %}
 
 select
     sha2(merchant_id, 256) as merchant_token,

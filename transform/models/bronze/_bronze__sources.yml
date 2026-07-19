@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: bronze
-    database: merchant_recon_project   # Unity Catalog catalog name; Phase 7 Terraform parameterizes dev/prod catalogs
+    database: "{{ target.database }}"   # resolves to the Unity Catalog catalog on Databricks, or the Snowflake database on the snowflake target -- both parameterized by infra*/*.tf per environment
     schema: bronze
     description: >
       Raw landed tables from the synthetic operational data generator
@@ -10,7 +10,7 @@ sources:
       (FRPS, CBP, CPI). Immutable, append-only, carries lineage metadata
       on every row. See docs/non_functional_targets.md for the Bronze
       immutability contract.
-    loader: databricks_copy_into
+    loader: "{{ 'snowflake_copy_into' if target.type == 'snowflake' else 'databricks_copy_into' }}"   # doc-only field; see scripts/load_bronze_to_snowflake.py for the actual Snowflake load mechanism
     freshness:
       warn_after: {count: 26, period: hour}
       error_after: {count: 50, period: hour}

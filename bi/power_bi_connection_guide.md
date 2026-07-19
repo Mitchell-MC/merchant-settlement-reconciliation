@@ -4,7 +4,7 @@
 
 **To open:** double-click `MeridianPayExecutive.pbip` in Power BI Desktop. It should prompt for Databricks OAuth sign-in (same RBAC groups as below) and load the model; the two report pages start blank — the DAX measures and star schema are already there, so building the visuals described under "Report pages" below is drag-and-drop from that point, no data modeling required.
 
-## Connection
+## Connection (Databricks)
 
 1. **Get Data → Databricks** (built-in connector, no driver install needed in recent Power BI Desktop versions).
 2. Server hostname: `dbc-08add949-9c19.cloud.databricks.com`
@@ -12,9 +12,20 @@
 4. Data Connectivity mode: **DirectQuery** for the executive page (numbers should reflect the latest completed `dbt build`, not a stale import), or **Import** for the ops drill-down page if query performance on `fct_exception_queue` matters more than freshness — a hybrid composite model is the production-realistic choice.
 5. Authentication: Azure AD / OAuth — sign in as a member of one of the [RBAC groups](../docs/rbac_access_matrix.md) (`recon_treasury_viewers` or `recon_bi_consumers` for a report author who shouldn't see raw Bronze/Silver).
 
+## Connection (Snowflake, parallel-run alternative)
+
+Same semantic model, relationships, DAX, and report pages below — only the connector and its account/role/warehouse settings change. Like the Databricks `.pbip` above, this has not been opened in Power BI Desktop in this environment (no GUI automation available) — treat first-open as the remaining verification step for this path too.
+
+1. **Get Data → Snowflake** (built-in connector, no driver install needed in recent Power BI Desktop versions).
+2. Server: `DZVUEJF-DF04786.snowflakecomputing.com` (or the account identifier form `DZVUEJF-DF04786`, depending on connector version).
+3. Warehouse: `BI_WH` (deliberately separate from `TRANSFORM_WH` — see [infra_snowflake/README.md](../infra_snowflake/README.md) — so a Power BI refresh can never compete with a running `dbt build` for compute).
+4. Database / schema: `MERCHANT_RECON_PROJECT_DEV` / `GOLD` (and `SILVER` for the two dimension tables).
+5. Data Connectivity mode: same DirectQuery/Import split as the Databricks connection above.
+6. Authentication: Snowflake supports username/password, key-pair, or SSO depending on connector version and account setup — sign in as (or map an RLS role to) one of the four [RBAC roles](../docs/rbac_access_matrix.md) (`RECON_TREASURY_VIEWERS` or `RECON_BI_CONSUMERS` for a report author who shouldn't see raw Bronze/Silver).
+
 ## Tables to import
 
-Only Gold objects — never Bronze/Silver directly from a report tool (see [data_governance.md](../docs/data_governance.md)'s masking policy):
+Only Gold objects — never Bronze/Silver directly from a report tool (see [data_governance.md](../docs/data_governance.md)'s masking policy). Names below are as they appear in Databricks (lowercase); on Snowflake the identical objects are named in uppercase (`GOLD.FCT_DAILY_CASH_POSITION`, etc. — see [rbac_access_matrix.md](../docs/rbac_access_matrix.md)'s note on case folding), same columns and grain either way:
 
 | Table | Role in the model |
 |---|---|
@@ -82,4 +93,4 @@ DIVIDE([Total Expected Settlement] - [Total Actual Cash Received], [Total Expect
 
 ## Row-level security
 
-Power BI RLS roles should mirror the Unity Catalog groups, not reinvent a parallel permission model: a `Treasury Viewer` RLS role restricted to `fct_daily_cash_position`/`fct_funding_cost_summary` only (no table access to break/merchant detail tables at all, enforced via Power BI's object-level permissions, not just row filters) matches exactly what `recon_treasury_viewers` gets in Unity Catalog — see [rbac_access_matrix.md](../docs/rbac_access_matrix.md).
+Power BI RLS roles should mirror the underlying warehouse's RBAC, not reinvent a parallel permission model: a `Treasury Viewer` RLS role restricted to `fct_daily_cash_position`/`fct_funding_cost_summary` only (no table access to break/merchant detail tables at all, enforced via Power BI's object-level permissions, not just row filters) matches exactly what `recon_treasury_viewers` (Databricks group) / `RECON_TREASURY_VIEWERS` (Snowflake role) gets at the warehouse — see [rbac_access_matrix.md](../docs/rbac_access_matrix.md) for both mappings.

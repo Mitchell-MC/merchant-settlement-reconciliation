@@ -1,0 +1,25 @@
+# CI-only dbt profile for the Snowflake target: key-pair auth as the
+# RECON_CI_SVC service user (see infra_snowflake/service_user.tf), not the
+# admin user's interactive key used for local dev (see
+# transform/profiles.yml.example). No secrets in this file -- the private
+# key's PEM text comes from the SNOWFLAKE_CI_PRIVATE_KEY GitHub Actions
+# secret at run time (dbt-snowflake's `private_key` field accepts raw PEM
+# text directly -- no temp file needed).
+#
+# Kept in its own directory (not alongside .github/ci/profiles.yml) so
+# nothing about the live Databricks CI profile is ever at risk of being
+# touched while working on the Snowflake side -- same separation as
+# infra_snowflake/ vs infra/.
+merchant_reconciliation:
+  target: ci_snowflake
+  outputs:
+    ci_snowflake:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: RECON_CI_SVC
+      role: RECON_ENGINEERING
+      database: MERCHANT_RECON_PROJECT_DEV
+      warehouse: TRANSFORM_WH
+      schema: SILVER
+      private_key: "{{ env_var('SNOWFLAKE_CI_PRIVATE_KEY') }}"
+      threads: 4
