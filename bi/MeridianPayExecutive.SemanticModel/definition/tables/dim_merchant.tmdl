@@ -107,3 +107,4 @@ table dim_merchant
 			table_Table
 
 	annotation PBI_ResultType = Table
+	annotation ADAM_Classification = Dimension

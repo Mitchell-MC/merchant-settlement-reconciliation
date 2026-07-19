@@ -94,3 +94,4 @@ table vw_exception_queue_masked
 			table_Table
 
 	annotation PBI_ResultType = Table
+	annotation ADAM_Classification = Disconnected

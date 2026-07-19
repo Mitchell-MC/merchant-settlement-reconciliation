@@ -102,3 +102,4 @@ table fct_merchant_exception_trends
 			table_Table
 
 	annotation PBI_ResultType = Table
+	annotation ADAM_Classification = Fact

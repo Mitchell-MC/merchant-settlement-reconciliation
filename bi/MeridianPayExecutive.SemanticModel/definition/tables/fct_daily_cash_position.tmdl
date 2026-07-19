@@ -119,3 +119,4 @@ table fct_daily_cash_position
 			table_Table
 
 	annotation PBI_ResultType = Table
+	annotation ADAM_Classification = Fact

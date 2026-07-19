@@ -152,3 +152,4 @@ table fct_reconciliation_breaks
 			table_Table
 
 	annotation PBI_ResultType = Table
+	annotation ADAM_Classification = Fact

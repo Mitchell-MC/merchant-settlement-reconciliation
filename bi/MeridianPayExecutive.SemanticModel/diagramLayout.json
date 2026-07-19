@@ -1,0 +1,420 @@
+{
+  "version": "1.1.0",
+  "connectors": [],
+  "diagrams": [
+    {
+      "name": "All Tables - Waterfall",
+      "scrollPosition": {
+        "x": 0,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 501,
+            "y": 0
+          },
+          "nodeIndex": "dim_date",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 1
+        },
+        {
+          "location": {
+            "x": 795,
+            "y": 0
+          },
+          "nodeIndex": "dim_merchant",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 2
+        },
+        {
+          "location": {
+            "x": 354,
+            "y": 534
+          },
+          "nodeIndex": "fct_daily_cash_position",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 3
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 0
+          },
+          "nodeIndex": "fct_funding_cost_summary",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 4
+        },
+        {
+          "location": {
+            "x": 648,
+            "y": 534
+          },
+          "nodeIndex": "fct_merchant_exception_trends",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 5
+        },
+        {
+          "location": {
+            "x": 942,
+            "y": 534
+          },
+          "nodeIndex": "fct_reconciliation_breaks",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 6
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 294
+          },
+          "nodeIndex": "vw_exception_queue_masked",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 7
+        }
+      ],
+      "zoomValue": 86.5885,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false,
+      "ordinal": 0
+    },
+    {
+      "name": "All Tables - Star Schema",
+      "scrollPosition": {
+        "x": 0,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 471,
+            "y": 1056
+          },
+          "nodeIndex": "dim_date",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 1
+        },
+        {
+          "location": {
+            "x": 2349,
+            "y": 1056
+          },
+          "nodeIndex": "dim_merchant",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 2
+        },
+        {
+          "location": {
+            "x": 1056,
+            "y": 1056
+          },
+          "nodeIndex": "fct_daily_cash_position",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 3
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 0
+          },
+          "nodeIndex": "fct_funding_cost_summary",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 4
+        },
+        {
+          "location": {
+            "x": 1410,
+            "y": 1056
+          },
+          "nodeIndex": "fct_merchant_exception_trends",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 5
+        },
+        {
+          "location": {
+            "x": 1764,
+            "y": 1056
+          },
+          "nodeIndex": "fct_reconciliation_breaks",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 6
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 294
+          },
+          "nodeIndex": "vw_exception_queue_masked",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 7
+        }
+      ],
+      "zoomValue": 44.1347,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false,
+      "ordinal": 1
+    },
+    {
+      "name": "fct_daily_cash_position",
+      "scrollPosition": {
+        "x": 0,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 0,
+            "y": 0
+          },
+          "nodeIndex": "dim_date",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 1
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 534
+          },
+          "nodeIndex": "fct_daily_cash_position",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 2
+        }
+      ],
+      "zoomValue": 86.5885,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false,
+      "ordinal": 2
+    },
+    {
+      "name": "fct_merchant_exception_trends",
+      "scrollPosition": {
+        "x": 0,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 0,
+            "y": 0
+          },
+          "nodeIndex": "dim_merchant",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 1
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 534
+          },
+          "nodeIndex": "fct_merchant_exception_trends",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 2
+        }
+      ],
+      "zoomValue": 86.5885,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false,
+      "ordinal": 3
+    },
+    {
+      "name": "fct_reconciliation_breaks",
+      "scrollPosition": {
+        "x": 0,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 0,
+            "y": 0
+          },
+          "nodeIndex": "dim_merchant",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 1
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 534
+          },
+          "nodeIndex": "fct_reconciliation_breaks",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 2
+        }
+      ],
+      "zoomValue": 86.5885,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false,
+      "ordinal": 4
+    },
+    {
+      "name": "All Tables - Inverted L",
+      "scrollPosition": {
+        "x": 0,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 588,
+            "y": 0
+          },
+          "nodeIndex": "dim_date",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 1
+        },
+        {
+          "location": {
+            "x": 882,
+            "y": 0
+          },
+          "nodeIndex": "dim_merchant",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 2
+        },
+        {
+          "location": {
+            "x": 294,
+            "y": 534
+          },
+          "nodeIndex": "fct_daily_cash_position",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 3
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 0
+          },
+          "nodeIndex": "fct_funding_cost_summary",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 4
+        },
+        {
+          "location": {
+            "x": 294,
+            "y": 828
+          },
+          "nodeIndex": "fct_merchant_exception_trends",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 5
+        },
+        {
+          "location": {
+            "x": 294,
+            "y": 1122
+          },
+          "nodeIndex": "fct_reconciliation_breaks",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 6
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 294
+          },
+          "nodeIndex": "vw_exception_queue_masked",
+          "size": {
+            "height": 234,
+            "width": 234
+          },
+          "zIndex": 7
+        }
+      ],
+      "zoomValue": 49.0413,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false,
+      "ordinal": 5
+    }
+  ]
+}
