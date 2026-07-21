@@ -49,19 +49,19 @@ resource "databricks_schema" "ops" {
 }
 
 resource "databricks_volume" "bronze_landing" {
-  provider         = databricks.workspace
-  catalog_name     = databricks_catalog.this.name
-  schema_name      = databricks_schema.bronze.name
-  name             = "landing"
-  volume_type      = "MANAGED"
-  comment          = "Raw parquet landing zone for the synthetic generator and macro-source ingestion scripts."
+  provider     = databricks.workspace
+  catalog_name = databricks_catalog.this.name
+  schema_name  = databricks_schema.bronze.name
+  name         = "landing"
+  volume_type  = "MANAGED"
+  comment      = "Raw parquet landing zone for the synthetic generator and macro-source ingestion scripts."
 }
 
 resource "databricks_volume" "bronze_qa_fixtures" {
-  provider         = databricks.workspace
-  catalog_name     = databricks_catalog.this.name
-  schema_name      = databricks_schema.bronze.name
-  name             = "qa_fixtures"
-  volume_type      = "MANAGED"
-  comment          = "Test fixtures (e.g. generator ground truth) -- never part of the production Bronze DAG."
+  provider     = databricks.workspace
+  catalog_name = databricks_catalog.this.name
+  schema_name  = databricks_schema.bronze.name
+  name         = "qa_fixtures"
+  volume_type  = "MANAGED"
+  comment      = "Test fixtures (e.g. generator ground truth) -- never part of the production Bronze DAG."
 }

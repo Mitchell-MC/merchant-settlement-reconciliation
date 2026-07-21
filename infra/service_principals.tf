@@ -4,8 +4,8 @@
 # handoff process (never generated or seen by this Terraform config).
 
 resource "databricks_service_principal" "ci_cd" {
-  provider      = databricks.account
-  display_name  = "recon-ci-cd"
+  provider       = databricks.account
+  display_name   = "recon-ci-cd"
   application_id = "3acbec4b-0afd-4c00-b39d-3399d8f1d50f"
 }
 

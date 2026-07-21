@@ -5,12 +5,12 @@
 # via Terraform (a careless `terraform destroy` would remove it).
 
 resource "databricks_sql_endpoint" "reconciliation" {
-  provider   = databricks.workspace
-  name       = "Serverless Starter Warehouse"
-  cluster_size            = var.warehouse_size
-  auto_stop_mins          = var.warehouse_auto_stop_minutes
+  provider                  = databricks.workspace
+  name                      = "Serverless Starter Warehouse"
+  cluster_size              = var.warehouse_size
+  auto_stop_mins            = var.warehouse_auto_stop_minutes
   enable_serverless_compute = true
-  max_num_clusters        = 1
+  max_num_clusters          = 1
 
   tags {
     custom_tags {

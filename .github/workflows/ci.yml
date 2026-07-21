@@ -82,7 +82,13 @@ jobs:
           python-version: "3.12"
       - run: pip install "dbt-databricks>=1.8,<2.0"
       - run: dbt deps
-      - run: dbt parse # syntax/DAG validation only -- no warehouse connection needed
+      # dbt needs a profile to resolve `target.*` even for parse (which never
+      # connects). Point at the repo's CI profile via an absolute path -- the
+      # default ~/.dbt does not exist on the runner.
+      - name: dbt parse # syntax/DAG validation only -- no warehouse connection needed
+        env:
+          DBT_PROFILES_DIR: ${{ github.workspace }}/.github/ci
+        run: dbt parse
 
   dbt-build-test:
     needs: [terraform-validate, dbt-parse]
@@ -104,5 +110,7 @@ jobs:
       - run: dbt deps
       - name: dbt build (seeds + models + tests) against the live dev catalog
         env:
-          DBT_PROFILES_DIR: .github/ci
+          # Absolute path -- a bare ".github/ci" would resolve under the
+          # transform working-directory, not the repo root.
+          DBT_PROFILES_DIR: ${{ github.workspace }}/.github/ci
         run: dbt build
