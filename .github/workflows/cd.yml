@@ -18,14 +18,20 @@ env:
   DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
 jobs:
-  # Deployment needs the recon-ci-cd service-principal secrets
-  # (DATABRICKS_CLIENT_ID/SECRET -- see infra/service_principals.tf). Until
-  # they are set, CD stays wired-but-inert: this preflight reports the secret
-  # as absent and every deploy job below skips, so a push to master shows a
-  # green (skipped) CD instead of a red one -- the same "configured, not yet
-  # enabled" posture as the alert webhook and the Snowflake schedule. Set the
-  # secrets to turn deployment on. (Secrets can't be read in a job-level `if`
-  # directly, hence this preflight-output indirection.)
+  # CD stays wired-but-inert until deployment is DELIBERATELY turned on, via a
+  # two-part gate below:
+  #   1. the CD_DEPLOY_ENABLED repo variable == "true"  (the explicit switch)
+  #   2. the recon-ci-cd service-principal secrets exist (DATABRICKS_CLIENT_ID/
+  #      SECRET -- see infra/service_principals.tf)
+  # A stored secret alone does NOT start deploying -- same "enabled, not just
+  # configured" posture as the Snowflake SNOWFLAKE_DAILY_ENABLED variable. This
+  # decoupling exists because deployment is not yet CI-ready: infra/providers.tf
+  # pins local CLI profiles (meridian-dev / meridian-account) that don't exist
+  # on a runner, so terraform-apply can't auth via the OAuth env creds until
+  # that is fixed. Flip CD_DEPLOY_ENABLED to "true" only after that providers.tf
+  # env-auth fix is in and verified. Until then every deploy job skips and a
+  # push to master shows a green (skipped) CD. (Secrets/vars can't be read in a
+  # job-level `if` directly, hence this preflight-output indirection.)
   preflight:
     runs-on: ubuntu-latest
     outputs:
@@ -34,12 +40,13 @@ jobs:
       - id: check
         env:
           DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          CD_DEPLOY_ENABLED: ${{ vars.CD_DEPLOY_ENABLED }}
         run: |
-          if [ -n "$DATABRICKS_CLIENT_ID" ]; then
+          if [ "$CD_DEPLOY_ENABLED" = "true" ] && [ -n "$DATABRICKS_CLIENT_ID" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::CD skipped -- DATABRICKS_CLIENT_ID not configured. Set the recon-ci-cd service-principal secrets to enable deployment (see this file's header)."
+            echo "::notice::CD skipped -- set the CD_DEPLOY_ENABLED repo variable to 'true' (and the recon-ci-cd secrets) to deploy. Deployment also needs the infra/providers.tf CI-auth fix first -- see this file's header."
           fi
 
   terraform-apply:
