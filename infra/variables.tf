@@ -14,6 +14,29 @@ variable "environment" {
   }
 }
 
+variable "databricks_workspace_profile" {
+  description = <<-EOT
+    Local ~/.databrickscfg profile for the workspace-scoped provider. Defaults
+    to the developer's meridian-dev CLI profile. CI sets this to "" (via
+    TF_VAR_databricks_workspace_profile) so the provider authenticates with
+    OAuth M2M env vars (DATABRICKS_HOST + DATABRICKS_CLIENT_ID/SECRET) instead
+    of a profile that doesn't exist on the runner.
+  EOT
+  type        = string
+  default     = "meridian-dev"
+}
+
+variable "databricks_account_profile" {
+  description = <<-EOT
+    Local ~/.databrickscfg profile for the account-scoped provider. Defaults to
+    meridian-account. CI sets this to "" so the account provider authenticates
+    via OAuth M2M env creds against the account host (host + account_id come
+    from the provider block).
+  EOT
+  type        = string
+  default     = "meridian-account"
+}
+
 variable "catalog_name" {
   description = "Unity Catalog catalog name for this environment."
   type        = string

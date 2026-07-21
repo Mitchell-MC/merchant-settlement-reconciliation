@@ -16,6 +16,11 @@ env:
   DATABRICKS_HOST: https://dbc-08add949-9c19.cloud.databricks.com
   DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
   DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+  # OAuth M2M auth on the runner: blank the local CLI-profile vars so
+  # infra/providers.tf falls back to the env creds above (see that file).
+  DATABRICKS_ACCOUNT_ID: "662b79e1-4316-4bf8-9d0b-eb5666ac1d98"
+  TF_VAR_databricks_workspace_profile: ""
+  TF_VAR_databricks_account_profile: ""
 
 jobs:
   # CD stays wired-but-inert until deployment is DELIBERATELY turned on, via a
