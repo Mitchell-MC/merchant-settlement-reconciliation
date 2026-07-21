@@ -18,7 +18,33 @@ env:
   DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
 jobs:
+  # Deployment needs the recon-ci-cd service-principal secrets
+  # (DATABRICKS_CLIENT_ID/SECRET -- see infra/service_principals.tf). Until
+  # they are set, CD stays wired-but-inert: this preflight reports the secret
+  # as absent and every deploy job below skips, so a push to master shows a
+  # green (skipped) CD instead of a red one -- the same "configured, not yet
+  # enabled" posture as the alert webhook and the Snowflake schedule. Set the
+  # secrets to turn deployment on. (Secrets can't be read in a job-level `if`
+  # directly, hence this preflight-output indirection.)
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        env:
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+        run: |
+          if [ -n "$DATABRICKS_CLIENT_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::CD skipped -- DATABRICKS_CLIENT_ID not configured. Set the recon-ci-cd service-principal secrets to enable deployment (see this file's header)."
+          fi
+
   terraform-apply:
+    needs: preflight
+    if: needs.preflight.outputs.deploy_enabled == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
