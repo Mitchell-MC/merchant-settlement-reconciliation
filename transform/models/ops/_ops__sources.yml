@@ -20,3 +20,23 @@ sources:
 models:
   - name: run_summary
     description: One-row-per-run rollup of reconciliation health and SLA flags -- the daily ops standup view.
+
+  - name: pipeline_heartbeat
+    description: >
+      Single-row dead-man's-switch surface: when the pipeline last actually
+      ran and the staleness threshold. Read staleness live via
+      timestampdiff(hour, last_run_completed_at, current_timestamp()) -- it
+      is deliberately NOT precomputed so a frozen table shows growing age.
+      The active alert is tests/assert_pipeline_not_silent.sql, run on an
+      independent schedule by databricks_job.pipeline_heartbeat.
+    columns:
+      - name: last_run_completed_at
+        description: >
+          Max run_started_at from ops.dbt_run_telemetry (previous completed
+          invocation; one-run lag by design). Intentionally NOT not_null
+          tested -- a null here means "no run has ever been logged", which is
+          a real state the dead-man's-switch test treats as failure, not a
+          data-quality error that should block `dbt build`.
+      - name: heartbeat_threshold_hours
+        description: Hours of silence tolerated before the pipeline is considered down (var pipeline_heartbeat_threshold_hours).
+        tests: [not_null]

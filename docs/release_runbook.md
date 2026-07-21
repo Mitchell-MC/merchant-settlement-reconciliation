@@ -1,5 +1,7 @@
 # Release Checklist, Rollback Playbook, and Backfill Procedure
 
+> **Scope:** this doc covers *planned* changes going wrong — a bad merge, a broken grant, a backfill. For an *unplanned, discovered-late* failure (the pipeline stopped producing correct/current data and nobody caught it), start with [docs/incident_runbook.md](incident_runbook.md) — scope the blast radius and contain first, then come back here for the rollback/backfill mechanics.
+
 ## Release checklist
 
 Before merging to `main`:

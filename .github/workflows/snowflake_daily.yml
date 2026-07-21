@@ -7,12 +7,15 @@ name: Snowflake Daily Reconciliation
 # Databricks pipeline during the parallel-run/cutover period -- see
 # docs/snowflake_migration_plan.md.
 #
-# Bronze reload is deliberately NOT part of this workflow, same division
-# of responsibility as cd.yml's dbt-deploy job (which also only runs dbt
-# commands, no data generation step): this repo treats Bronze population
-# as a separate, manual/on-demand step -- see
-# scripts/load_bronze_to_snowflake.py -- not something the daily
-# transform job re-runs.
+# Bronze IS refreshed at the start of this workflow (generate -> load ->
+# freshness gate -> build), so the freshness gate has current data to verify
+# against -- the production-correct order for a daily pipeline. This is a
+# deliberate divergence from the Databricks cd.yml/jobs.tf split (where Bronze
+# landing is a separate out-of-band step): the Snowflake target owns a real
+# loader (scripts/load_bronze_to_snowflake.py) with no Databricks equivalent,
+# so wiring it in here is the natural place. The generator is deterministic
+# (seed=42), so this re-lands the same business data with a current ingestion
+# timestamp rather than inventing new facts -- see docs/snowflake_migration_plan.md.
 #
 # Paused-by-default equivalent: the scheduled trigger is a no-op unless
 # the `SNOWFLAKE_DAILY_ENABLED` repository variable is set to "true" --
@@ -51,6 +54,12 @@ jobs:
   dbt-build:
     if: github.event_name == 'workflow_dispatch' || vars.SNOWFLAKE_DAILY_ENABLED == 'true'
     runs-on: ubuntu-latest
+    # Wall-clock ceiling -- the GitHub Actions parallel of infra/jobs.tf's
+    # RUN_DURATION_SECONDS health rule (var.max_run_duration_seconds = 3600).
+    # A hung dbt run that never errors would otherwise sit until the runner's
+    # 6h default timeout with no signal; this makes a hang fail loudly (and
+    # trip the failure-alert step below) instead of failing silently.
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: transform
@@ -59,9 +68,63 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install "dbt-snowflake>=1.8,<2.0"
+      # dbt-snowflake already pulls in snowflake-connector-python + cryptography
+      # (the loader's deps); pandas/numpy/pyarrow are the generator's.
+      - name: Install dependencies
+        working-directory: ${{ github.workspace }}
+        run: pip install "dbt-snowflake>=1.8,<2.0" -r data_generation/requirements.txt
+      # Refresh Bronze FIRST, then gate on its freshness. A daily pipeline
+      # lands current data and the gate verifies it -- the production-correct
+      # order. The generator is deterministic (seed=42), so this re-lands the
+      # same business data with a CURRENT _ingestion_timestamp (stamped at
+      # generation time in common/lineage.py) -- which is exactly what the
+      # freshness contract checks. Only the 6 operational tables are
+      # regenerated; the slowly-changing macro tables (FRPS/CBP/CPI) are left
+      # as previously loaded (freshness-exempt in the yml) -- the loader skips
+      # any table with no local parquet, so it never touches them here.
+      - name: Refresh Bronze -- generate synthetic operational data
+        working-directory: ${{ github.workspace }}
+        run: python data_generation/generate.py --seed 42
+      - name: Refresh Bronze -- load into Snowflake
+        working-directory: ${{ github.workspace }}
+        env:
+          SNOWFLAKE_CI_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_CI_PRIVATE_KEY }}
+        run: >-
+          python scripts/load_bronze_to_snowflake.py
+          --profiles-target ci_snowflake
+          --profiles-path .github/ci_snowflake/profiles.yml
       - run: dbt deps
+      # Freshness gate -- the parallel of the Databricks daily job's
+      # `dbt source freshness` step (infra/jobs.tf). Checks the operational
+      # Bronze tables (just refreshed above) against the thresholds in
+      # models/bronze/_bronze__sources.yml and exits non-zero on an `error`
+      # state, failing the job BEFORE build rather than publishing a green
+      # Gold snapshot on stale/missing data. The slowly-changing macro sources
+      # are exempted per-table in the yml so this never false-fires on
+      # FRPS/CBP/CPI.
+      - name: dbt source freshness (pre-build gate) against Snowflake
+        env:
+          DBT_PROFILES_DIR: ../.github/ci_snowflake
+        run: dbt source freshness --target ci_snowflake
       - name: dbt build (seeds + models + tests) against Snowflake
         env:
           DBT_PROFILES_DIR: ../.github/ci_snowflake
         run: dbt build --target ci_snowflake
+      # Turn "silent" into "loud": on any failure above (freshness gate, a
+      # build/test error, or the timeout), post to an alert webhook if one is
+      # configured. Wired-but-inert by default -- the parallel of the
+      # Databricks job's empty var.alert_email_recipients: the control exists
+      # and is one repo-secret away from live, and GitHub's own workflow-
+      # failure email to the actor fires regardless. See docs/incident_runbook.md.
+      - name: Alert on failure
+        if: failure()
+        env:
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+        run: |
+          if [ -z "$ALERT_WEBHOOK_URL" ]; then
+            echo "::warning::Snowflake daily reconciliation FAILED but no ALERT_WEBHOOK_URL secret is configured -- see docs/incident_runbook.md"
+            exit 0
+          fi
+          curl -fsS -X POST "$ALERT_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d '{"text":"🔴 Snowflake daily reconciliation FAILED (freshness gate, build/test, or timeout). Follow docs/incident_runbook.md."}'

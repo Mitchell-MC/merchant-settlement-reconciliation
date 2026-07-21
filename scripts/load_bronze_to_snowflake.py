@@ -20,6 +20,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 import snowflake.connector
@@ -51,15 +52,34 @@ def _load_snowflake_target(profiles_path: Path, target_name: str) -> dict:
     return profiles["merchant_reconciliation"]["outputs"][target_name]
 
 
-def _connect(target: dict) -> snowflake.connector.SnowflakeConnection:
+def _load_private_key_pem(target: dict) -> bytes:
+    """PEM bytes for key-pair auth, from whichever source is available.
+
+    CI (see .github/workflows/snowflake_daily.yml) has no key *file* -- it
+    injects the raw PEM text through the SNOWFLAKE_CI_PRIVATE_KEY secret,
+    exactly as the ci_snowflake dbt profile does. Local dev uses a
+    private_key_path in transform/profiles.yml. Env text wins when present so
+    the same script serves both without a profile edit.
+    """
+    pem_env = os.environ.get("SNOWFLAKE_CI_PRIVATE_KEY")
+    if pem_env:
+        return pem_env.encode("utf-8")
     key_path = Path(target["private_key_path"]).expanduser()
-    with open(key_path, "rb") as f:
-        private_key = serialization.load_pem_private_key(f.read(), password=None)
+    return key_path.read_bytes()
+
+
+def _connect(target: dict) -> snowflake.connector.SnowflakeConnection:
+    private_key = serialization.load_pem_private_key(_load_private_key_pem(target), password=None)
     private_key_bytes = private_key.private_bytes(
         encoding=serialization.Encoding.DER,
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption(),
     )
+    # account may be a literal in the local profile or a "{{ env_var(...) }}"
+    # template in the ci_snowflake profile (read raw here -- this script does
+    # not render dbt Jinja), so env wins when set. Same for database.
+    account = os.environ.get("SNOWFLAKE_ACCOUNT") or target["account"]
+    database = os.environ.get("SNOWFLAKE_DATABASE") or target["database"]
     # QUOTED_IDENTIFIERS_IGNORE_CASE is set account-wide by
     # infra_snowflake/account_parameters.tf -- INFER_SCHEMA-driven CREATE
     # TABLE below preserves the Parquet files' exact (lowercase) column
@@ -68,11 +88,11 @@ def _connect(target: dict) -> snowflake.connector.SnowflakeConnection:
     # "invalid identifier". See that file for why it has to be account-
     # level rather than set here per-session.
     return snowflake.connector.connect(
-        account=target["account"],
+        account=account,
         user=target["user"],
         role=target.get("role"),
         warehouse=target["warehouse"],
-        database=target["database"],
+        database=database,
         schema="BRONZE",
         private_key=private_key_bytes,
     )
@@ -123,11 +143,16 @@ def load_table(cur, table: str) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tables", help="Comma-separated subset of tables to load (default: all)")
-    parser.add_argument("--profiles-target", default="snowflake", help="Output name in transform/profiles.yml")
+    parser.add_argument("--profiles-target", default="snowflake", help="Output name in the profiles file (e.g. 'snowflake' for local dev, 'ci_snowflake' in CI)")
+    parser.add_argument(
+        "--profiles-path",
+        default=str(PROFILES_PATH),
+        help="Path to the dbt profiles.yml. Defaults to transform/profiles.yml (local dev, gitignored); CI passes .github/ci_snowflake/profiles.yml since the local one is not present there.",
+    )
     args = parser.parse_args()
 
     tables = args.tables.split(",") if args.tables else BRONZE_TABLES
-    target = _load_snowflake_target(PROFILES_PATH, args.profiles_target)
+    target = _load_snowflake_target(Path(args.profiles_path), args.profiles_target)
 
     conn = _connect(target)
     try:

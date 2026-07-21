@@ -41,3 +41,9 @@ vars:
   reconciliation_date_window_business_days: 2
   cash_at_risk_aging_threshold_business_days: 5
   assumed_cost_of_funds_annual_rate: 0.08
+  # Dead-man's-switch threshold: how many hours since the last logged run
+  # before the pipeline is considered SILENT (see ops/pipeline_heartbeat.sql
+  # and tests/assert_pipeline_not_silent.sql). 26h = the daily cadence plus
+  # a 2h grace window, matching the Bronze source freshness warn window in
+  # models/bronze/_bronze__sources.yml.
+  pipeline_heartbeat_threshold_hours: 26

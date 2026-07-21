@@ -11,6 +11,14 @@ sources:
       on every row. See docs/non_functional_targets.md for the Bronze
       immutability contract.
     loader: "{{ 'snowflake_copy_into' if target.type == 'snowflake' else 'databricks_copy_into' }}"   # doc-only field; see scripts/load_bronze_to_snowflake.py for the actual Snowflake load mechanism
+    # Source-level default freshness applies to the OPERATIONAL tables
+    # (merchants/transactions/settlement_batches/reserve_events/
+    # returns_adjustments/bank_movements) -- the daily feed whose silence is
+    # the "failed for 72 hours" scenario. The slowly-changing macro tables
+    # (frps/cbp/cpi) override this below, because their staleness is expected
+    # and documented (see docs/non_functional_targets.md "Freshness window")
+    # -- flagging them stale on a daily `dbt source freshness` would be pure
+    # false-noise, the opposite of what monitoring is for.
     freshness:
       warn_after: {count: 26, period: hour}
       error_after: {count: 50, period: hour}
@@ -135,6 +143,8 @@ sources:
           type (see docs/source_contracts/frps.md). Grain: (row_number,
           collection_year) -- payment_type_label repeats across the
           hierarchy, so row_number (not the label) is the real key.
+        # Triennial benchmark -- disable freshness; staleness is by design.
+        freshness: null
         tests:
           - dbt_utils.unique_combination_of_columns:
               combination_of_columns: [row_number, collection_year]
@@ -153,6 +163,8 @@ sources:
           County Business Patterns establishment counts by geography/2-digit
           NAICS sector/employer-size (see docs/source_contracts/cbp.md).
           Grain: (state_fips, county_fips, naics_code).
+        # Annual Census release -- disable freshness; staleness is by design.
+        freshness: null
         tests:
           - dbt_utils.unique_combination_of_columns:
               combination_of_columns: [state_fips, county_fips, naics_code]
@@ -168,6 +180,11 @@ sources:
         description: >
           BLS Consumer Price Index monthly series, CPI-U all items, NSA and
           SA (see docs/source_contracts/cpi.md). Grain: (series_id, year, period).
+        # Monthly BLS release, ~2wk lag -- warn only past 45 days, never
+        # error (macro enrichment must not block operational reconciliation),
+        # matching docs/non_functional_targets.md.
+        freshness:
+          warn_after: {count: 45, period: day}
         tests:
           - dbt_utils.unique_combination_of_columns:
               combination_of_columns: [series_id, year, period]

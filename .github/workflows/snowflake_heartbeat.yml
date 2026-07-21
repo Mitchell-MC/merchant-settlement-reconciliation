@@ -1,0 +1,76 @@
+name: Snowflake Pipeline Heartbeat
+
+# Dead-man's-switch for the Snowflake target -- the parallel of
+# infra/jobs.tf's databricks_job.pipeline_heartbeat, on the platform whose
+# scheduling lives in GitHub Actions rather than Terraform (Snowflake has no
+# dbt-job resource -- see snowflake_daily.yml / infra_snowflake/README.md).
+#
+# It exists to answer the one question snowflake_daily.yml structurally
+# cannot: "did the daily run happen at all?" ops.dbt_run_telemetry is only
+# written when a run happens, so a daily workflow that stops firing (disabled,
+# a broken schedule, a persistent failure) leaves nothing behind and is
+# invisible to any check inside the pipeline. This runs on its OWN cron,
+# independent of the daily workflow, and executes ONLY the
+# assert_pipeline_not_silent test -- which fails when no run has been logged
+# within pipeline_heartbeat_threshold_hours (26h). A watcher that shares a
+# trigger with the thing it watches is not a watcher.
+#
+# Gating: tied to the same SNOWFLAKE_DAILY_ENABLED repo variable as the daily
+# job, so the watchdog turns on exactly when the pipeline it guards does. An
+# always-firing heartbeat over a deliberately-disabled pipeline is just noise
+# (the Snowflake equivalent of the Databricks heartbeat's PAUSED-in-dev
+# default). In a real always-on deployment this is simply left enabled --
+# that is the entire point of a dead-man's-switch. workflow_dispatch always
+# runs, for manual verification.
+#
+# Limitation, stated honestly (docs/incident_runbook.md "system verdict"):
+# this watcher depends on GitHub Actions' scheduler and the Snowflake
+# warehouse both being up, so it cannot detect an outage that takes itself
+# down too. A fully external, off-platform heartbeat is the documented next
+# step on both targets, not implemented here.
+
+on:
+  schedule:
+    # Every 6h, deliberately offset from and independent of the daily
+    # 10:00 UTC run. Same fixed-UTC/DST caveat as snowflake_daily.yml.
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}
+
+env:
+  SNOWFLAKE_ACCOUNT: "DZVUEJF-DF04786"
+  SNOWFLAKE_CI_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_CI_PRIVATE_KEY }}
+
+jobs:
+  heartbeat:
+    if: github.event_name == 'workflow_dispatch' || vars.SNOWFLAKE_DAILY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: transform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "dbt-snowflake>=1.8,<2.0"
+      - run: dbt deps
+      # Only the dead-man's-switch test -- no build, no seed. Cheap, fast, and
+      # independent of whether the daily pipeline is healthy. A non-empty
+      # result fails the test -> fails this job -> trips the alert below.
+      - name: Dead-man's-switch -- fail if the pipeline has gone silent
+        env:
+          DBT_PROFILES_DIR: ../.github/ci_snowflake
+        run: dbt test --select assert_pipeline_not_silent --target ci_snowflake
+      - name: Alert on silence
+        if: failure()
+        env:
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+        run: |
+          if [ -z "$ALERT_WEBHOOK_URL" ]; then
+            echo "::warning::Snowflake pipeline heartbeat FAILED (pipeline may be silent) but no ALERT_WEBHOOK_URL secret is configured -- see docs/incident_runbook.md"
+            exit 0
+          fi
+          curl -fsS -X POST "$ALERT_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d '{"text":"🔴 Snowflake reconciliation pipeline heartbeat FAILED -- no successful run within the heartbeat window. Follow docs/incident_runbook.md."}'

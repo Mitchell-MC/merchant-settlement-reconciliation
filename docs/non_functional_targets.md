@@ -13,6 +13,8 @@ These are binding operational contracts, not aspirations. Phase 5 (data quality/
 
 If the 07:00 Gold publish SLA is missed, the run is flagged `SLA_BREACH` in telemetry and the prior day's Gold snapshot remains the served version (no partial/inconsistent publish — see [[kpi-contract]] point-in-time correctness rule).
 
+**Liveness / silent-failure detection (the run stopping entirely, not just running late).** The telemetry above is only written *when a run happens*, so it cannot detect a job that stops firing. That gap is closed by an independent **dead-man's-switch**: `transform/tests/assert_pipeline_not_silent.sql`, run by a separate 6-hourly job (`databricks_job.pipeline_heartbeat`, `infra/jobs.tf`), fails when no run has been logged within `pipeline_heartbeat_threshold_hours` (**26h** — the daily cadence plus a 2h grace window). The daily job additionally runs `dbt source freshness` as a pre-build gate and routes `on_failure` / `on_duration_warning` to `alert_email_recipients`. The **Snowflake** target enforces the identical contract through GitHub Actions instead of Terraform (it has no dbt-job resource): `.github/workflows/snowflake_daily.yml` carries the freshness gate + a `timeout-minutes` ceiling + a failure-alert step, and `.github/workflows/snowflake_heartbeat.yml` is the independently-scheduled dead-man's-switch — both backed by the same shared `assert_pipeline_not_silent` test. When this liveness contract is breached on either target, follow [docs/incident_runbook.md](incident_runbook.md).
+
 ## Freshness window
 
 - **Synthetic operational data (transactions, settlements, bank postings):** generated and landed in Bronze for `batch_date = T-1` by the start of the daily run.
