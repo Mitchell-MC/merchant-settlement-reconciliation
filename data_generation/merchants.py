@@ -11,7 +11,6 @@ from datetime import timedelta
 
 import numpy as np
 import pandas as pd
-
 from config import GenerationConfig
 
 REGION_STATES = {

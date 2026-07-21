@@ -27,6 +27,10 @@ import requests
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 from common.lineage import add_lineage, write_landed_parquet  # noqa: E402
+from common.logging_setup import get_logger  # noqa: E402
+from common.validation import validate_bronze  # noqa: E402
+
+logger = get_logger("cpi_ingest")
 
 API_URL = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
 SERIES_IDS = {
@@ -80,17 +84,24 @@ def _parse_response(body: dict) -> pd.DataFrame:
 def main(start_year: int, end_year: int) -> None:
     run_id = str(uuid.uuid4())
 
-    print(f"Fetching CPI series {list(SERIES_IDS)} for {start_year}-{end_year}")
+    logger.info("Fetching CPI series %s for %s-%s | run_id=%s", list(SERIES_IDS), start_year, end_year, run_id)
     body = _fetch(start_year, end_year)
     df = _parse_response(body)
     df["pulled_at"] = datetime.now(timezone.utc).isoformat()
 
+    # Boundary contract check -- alerts loudly if a numeric column arrived as
+    # strings or a key column vanished, before the bad frame lands in Bronze.
+    validate_bronze(df, OUTPUT_TABLE, logger=logger)
+
     landed = add_lineage(df, SOURCE_SYSTEM, run_id)
     out_path = write_landed_parquet(landed, str(PROJECT_ROOT / "data" / "bronze"), OUTPUT_TABLE)
 
-    print(f"Landed {len(landed)} rows -> {out_path}")
+    logger.info("Landed %d rows -> %s", len(landed), out_path)
     latest = df.sort_values(["year", "period"]).groupby("series_id").tail(1)
-    print(latest[["series_id", "year", "period_name", "value"]].to_string(index=False))
+    logger.info(
+        "Latest CPI values:\n%s",
+        latest[["series_id", "year", "period_name", "value"]].to_string(index=False),
+    )
 
 
 if __name__ == "__main__":

@@ -1,5 +1,4 @@
 import pytest
-
 from config import BreakInjectionRates, SegmentWeights
 
 TOLERANCE = 1e-3

@@ -14,7 +14,6 @@ from datetime import timedelta
 
 import numpy as np
 import pandas as pd
-
 from calendar_utils import next_business_day
 from config import GenerationConfig
 

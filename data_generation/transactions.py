@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-
 from calendar_utils import date_range
 from config import GenerationConfig
 

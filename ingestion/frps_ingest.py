@@ -31,6 +31,9 @@ import requests
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 from common.lineage import add_lineage, write_landed_parquet  # noqa: E402
+from common.logging_setup import get_logger  # noqa: E402
+
+logger = get_logger("frps_ingest")
 
 DEFAULT_URL = "https://www.federalreserve.gov/publications/images/FRPS_CY2024_IDR_data.xlsx"
 SHEET_NAME = "Table 1"
@@ -115,7 +118,7 @@ def main(url: str = DEFAULT_URL) -> None:
     run_id = str(uuid.uuid4())
     tmp_path = Path(__file__).resolve().parent / "_downloads" / "frps_workbook.xlsx"
 
-    print(f"Downloading FRPS workbook from {url}")
+    logger.info("Downloading FRPS workbook from %s", url)
     _download(url, tmp_path)
 
     df = _parse_workbook(tmp_path)
@@ -126,8 +129,8 @@ def main(url: str = DEFAULT_URL) -> None:
     landed = add_lineage(df, SOURCE_SYSTEM, run_id)
     out_path = write_landed_parquet(landed, str(PROJECT_ROOT / "data" / "bronze"), OUTPUT_TABLE)
 
-    print(f"Landed {len(landed)} rows -> {out_path}")
-    print(df.groupby("collection_year").size().to_string())
+    logger.info("Landed %d rows -> %s", len(landed), out_path)
+    logger.info("Rows by collection_year:\n%s", df.groupby("collection_year").size().to_string())
 
 
 if __name__ == "__main__":

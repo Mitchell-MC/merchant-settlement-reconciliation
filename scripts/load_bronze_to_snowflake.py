@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from pathlib import Path
 
 import snowflake.connector
@@ -30,6 +31,11 @@ from cryptography.hazmat.primitives import serialization
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 BRONZE_DIR = PROJECT_ROOT / "data" / "bronze"
 PROFILES_PATH = PROJECT_ROOT / "transform" / "profiles.yml"
+
+sys.path.insert(0, str(PROJECT_ROOT))
+from common.logging_setup import get_logger  # noqa: E402
+
+logger = get_logger("load_bronze_to_snowflake")
 
 # Matches transform/models/bronze/_bronze__sources.yml -- fred_rates is
 # deliberately excluded there too (no FRED_API_KEY in this environment).
@@ -101,7 +107,7 @@ def _connect(target: dict) -> snowflake.connector.SnowflakeConnection:
 def load_table(cur, table: str) -> int:
     local_path = BRONZE_DIR / table / f"{table}.parquet"
     if not local_path.exists():
-        print(f"  skip {table}: no local file at {local_path}")
+        logger.warning("skip %s: no local file at %s", table, local_path)
         return 0
 
     stage_path = f"@BRONZE.BRONZE_LANDING/{table}"
@@ -159,7 +165,7 @@ def main() -> None:
         cur = conn.cursor()
         for table in tables:
             count = load_table(cur, table)
-            print(f"  {table}: {count} rows loaded")
+            logger.info("%s: %d rows loaded", table, count)
     finally:
         conn.close()
 

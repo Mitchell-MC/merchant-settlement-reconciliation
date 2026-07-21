@@ -16,7 +16,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [master]
+  push:
+    branches: [master]
 
 env:
   DATABRICKS_HOST: https://dbc-08add949-9c19.cloud.databricks.com
@@ -24,6 +26,22 @@ env:
   DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
 jobs:
+  # Fast gate: lint every push/PR. A linter error blocks merge -- cheap,
+  # no secrets, no warehouse. (Terraform is fmt-checked and dbt is parsed in
+  # their own jobs below; this closes the Python-side gap.)
+  python-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      # Lint gate (undefined names, unused imports, import order, real syntax
+      # errors). `ruff format` adoption is intentionally a separate future
+      # step -- not folded in here so this change stays reviewable.
+      - run: ruff check .
+
   python-unit-tests:
     runs-on: ubuntu-latest
     steps:
@@ -32,7 +50,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r data_generation/requirements.txt -r ingestion/requirements.txt -r requirements-dev.txt
-      - run: pytest tests/ -v
+      # Coverage is a ratchet, not a vanity number: --cov-fail-under blocks
+      # merge if coverage drops below the floor in pyproject.toml, so a PR
+      # can't quietly remove tested code. Raise the floor as coverage grows;
+      # never lower it to make a red build green.
+      - run: pytest tests/ -v --cov --cov-report=term-missing
 
   terraform-validate:
     runs-on: ubuntu-latest
@@ -64,6 +86,11 @@ jobs:
 
   dbt-build-test:
     needs: [terraform-validate, dbt-parse]
+    # Live build against the dev catalog needs the Databricks CI secrets, so
+    # run it on PRs (the merge gate) but skip it on direct pushes to master --
+    # a push without those secrets would go red on every commit and train
+    # everyone to ignore a red CI, which defeats the whole point of the gate.
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     defaults:
       run:

@@ -1,0 +1,27 @@
+# Tooling config for the Python side of the platform (generator, ingestion,
+# load/utility scripts, tests). Terraform and dbt have their own toolchains;
+# this file governs lint (ruff), test, and coverage -- the automated gates
+# enforced by .github/workflows/ci.yml.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = [".venv", "data", "transform/dbt_packages", "**/target"]
+
+[tool.ruff.lint]
+# Default rules (pyflakes F + pycodestyle errors E) catch the things the CI
+# gate exists to reject: undefined names, unused imports, real syntax errors.
+# E402 (import not at top) is deliberate in the ingestion scripts -- they
+# insert PROJECT_ROOT onto sys.path before importing common.*, and already
+# carry per-line `# noqa: E402`.
+extend-select = ["I"] # import sorting -- keeps import blocks deterministic
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Coverage runs on every `pytest` invocation and blocks below the floor.
+# The floor is a ratchet just under the current measured value -- raise it as
+# coverage grows, never lower it to turn a red build green.
+addopts = "--cov=common --cov=ingestion --cov=data_generation --cov=scripts --cov-report=term-missing --cov-fail-under=35"
+
+[tool.coverage.run]
+omit = ["tests/*"]

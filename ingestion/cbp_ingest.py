@@ -40,6 +40,9 @@ import requests
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 from common.lineage import add_lineage, write_landed_parquet  # noqa: E402
+from common.logging_setup import get_logger  # noqa: E402
+
+logger = get_logger("cbp_ingest")
 
 DEFAULT_URL = "https://www2.census.gov/programs-surveys/cbp/datasets/2023/cbp23co.zip"
 VINTAGE_YEAR = 2023
@@ -98,7 +101,7 @@ def main(url: str = DEFAULT_URL, naics_digits: int = 2) -> None:
     run_id = str(uuid.uuid4())
     zip_path = Path(__file__).resolve().parent / "_downloads" / "cbp23co.zip"
 
-    print(f"Downloading CBP county file from {url}")
+    logger.info("Downloading CBP county file from %s", url)
     _download(url, zip_path)
 
     df = _parse_csv(zip_path, naics_digits)
@@ -109,7 +112,7 @@ def main(url: str = DEFAULT_URL, naics_digits: int = 2) -> None:
     landed = add_lineage(df, SOURCE_SYSTEM, run_id)
     out_path = write_landed_parquet(landed, str(PROJECT_ROOT / "data" / "bronze"), OUTPUT_TABLE)
 
-    print(f"Landed {len(landed)} rows ({naics_digits}-digit NAICS sector grain) -> {out_path}")
+    logger.info("Landed %d rows (%d-digit NAICS sector grain) -> %s", len(landed), naics_digits, out_path)
 
 
 if __name__ == "__main__":

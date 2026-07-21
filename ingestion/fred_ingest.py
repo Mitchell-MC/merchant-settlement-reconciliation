@@ -28,6 +28,9 @@ import requests
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 from common.lineage import add_lineage, write_landed_parquet  # noqa: E402
+from common.logging_setup import get_logger  # noqa: E402
+
+logger = get_logger("fred_ingest")
 
 API_URL = "https://api.stlouisfed.org/fred/series/observations"
 SERIES_IDS = {
@@ -81,7 +84,7 @@ def main(start_date: str, end_date: str) -> None:
         )
 
     run_id = str(uuid.uuid4())
-    print(f"Fetching FRED series {list(SERIES_IDS)} for {start_date}..{end_date}")
+    logger.info("Fetching FRED series %s for %s..%s | run_id=%s", list(SERIES_IDS), start_date, end_date, run_id)
 
     frames = []
     for series_id, series_type in SERIES_IDS.items():
@@ -93,9 +96,12 @@ def main(start_date: str, end_date: str) -> None:
     landed = add_lineage(df, SOURCE_SYSTEM, run_id)
     out_path = write_landed_parquet(landed, str(PROJECT_ROOT / "data" / "bronze"), OUTPUT_TABLE)
 
-    print(f"Landed {len(landed)} rows -> {out_path}")
+    logger.info("Landed %d rows -> %s", len(landed), out_path)
     latest = df.sort_values("observation_date").groupby("series_id").tail(1)
-    print(latest[["series_id", "observation_date", "value"]].to_string(index=False))
+    logger.info(
+        "Latest FRED values:\n%s",
+        latest[["series_id", "observation_date", "value"]].to_string(index=False),
+    )
 
 
 if __name__ == "__main__":

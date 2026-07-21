@@ -9,7 +9,7 @@ name: CD
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch: {} # allows manually re-running just the activation step
 
 env:

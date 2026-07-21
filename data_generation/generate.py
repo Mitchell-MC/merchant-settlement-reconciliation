@@ -19,11 +19,16 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from bank_postings import generate_bank_postings
-from common.lineage import add_lineage, write_landed_parquet
 from config import GenerationConfig
 from merchants import generate_merchants
 from settlement import generate_settlement_batches
 from transactions import generate_transactions
+
+from common.lineage import add_lineage, write_landed_parquet
+from common.logging_setup import get_logger
+from common.validation import validate_bronze
+
+logger = get_logger("data_generation.generate")
 
 
 def main(config: GenerationConfig | None = None) -> None:
@@ -31,9 +36,13 @@ def main(config: GenerationConfig | None = None) -> None:
     run_id = str(uuid.uuid4())
     started = datetime.now(timezone.utc)
 
-    print(
-        f"Run {run_id} | seed={config.seed} | "
-        f"{config.start_date} -> {config.end_date} | merchants={config.merchant_count}"
+    logger.info(
+        "Run %s | seed=%s | %s -> %s | merchants=%s",
+        run_id,
+        config.seed,
+        config.start_date,
+        config.end_date,
+        config.merchant_count,
     )
 
     merchants = generate_merchants(config)
@@ -57,6 +66,8 @@ def main(config: GenerationConfig | None = None) -> None:
 
     summary = []
     for name, df in tables.items():
+        # Alert on any type/shape drift in the money columns before landing.
+        validate_bronze(df, name, logger=logger)
         landed = add_lineage(df, config.source_system, run_id)
         path = write_landed_parquet(landed, config.output_dir, name)
         summary.append((name, len(landed), path))
@@ -68,13 +79,14 @@ def main(config: GenerationConfig | None = None) -> None:
     pd.DataFrame(summary, columns=["table", "row_count", "path"]).to_csv(manifest_path, index=False)
 
     finished = datetime.now(timezone.utc)
-    print(f"Completed in {(finished - started).total_seconds():.1f}s\n")
+    logger.info("Completed in %.1fs", (finished - started).total_seconds())
     for name, count, path in summary:
-        print(f"  {name:<24} {count:>10,} rows -> {path}")
-    print(f"  {'ground_truth_breaks':<24} {len(ground_truth):>10,} rows -> {gt_path}")
-
-    print("\nInjected break scenario distribution:")
-    print(ground_truth["injected_scenario"].value_counts().to_string())
+        logger.info("  %-24s %10s rows -> %s", name, f"{count:,}", path)
+    logger.info("  %-24s %10s rows -> %s", "ground_truth_breaks", f"{len(ground_truth):,}", gt_path)
+    logger.info(
+        "Injected break scenario distribution:\n%s",
+        ground_truth["injected_scenario"].value_counts().to_string(),
+    )
 
 
 if __name__ == "__main__":
