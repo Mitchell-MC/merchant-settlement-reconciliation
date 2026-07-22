@@ -20,7 +20,7 @@ After merge (CD pipeline, see `.github/workflows/cd.yml`):
 ## Rollback playbook
 
 **If a bad model/test change reaches `main` before the daily job runs:**
-1. Pause the job immediately: `databricks jobs update --job-id 376440490795606 --json '{"new_settings": {"schedule": {"pause_status": "PAUSED"}}}'` — stops the bad code from ever executing on schedule.
+1. Pause the job immediately: `databricks jobs update 376440490795606 --json '{"new_settings":{"schedule":{"quartz_cron_expression":"0 0 6 * * ?","timezone_id":"America/New_York","pause_status":"PAUSED"}}}'` — stops the bad code from ever executing on schedule. (JOB_ID is positional in the current CLI; the schedule object is replaced wholesale, so include cron/timezone, not just `pause_status`.)
 2. `git revert` the bad commit on `main`, open a PR, let CI re-validate.
 3. Re-run `cd.yml` (or push the revert) to re-sync the corrected project and re-approve `activate-schedule`.
 

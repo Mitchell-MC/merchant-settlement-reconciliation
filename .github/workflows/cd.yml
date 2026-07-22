@@ -20,6 +20,11 @@ name: CD
 on:
   push:
     branches: [master]
+    # Docs-only changes don't need a redeploy (the dbt build smoke test is the
+    # expensive part). A push touching any non-doc file still triggers.
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
   workflow_dispatch: {} # allows manually re-running the deploy/activation
 
 # Never let two deploys run at once -- a concurrent `dbt build` against the
@@ -99,7 +104,11 @@ jobs:
       - name: Install Databricks CLI
         run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
       - name: Unpause the daily reconciliation job
+        # JOB_ID is positional in the current CLI (`jobs update JOB_ID`), not a
+        # --job-id flag. `update` is a partial update, but the schedule object
+        # is replaced wholesale, so the cron/timezone must be included, not
+        # just pause_status (keep these in sync with infra/jobs.tf).
         run: |
-          databricks jobs update --job-id "$JOB_ID" --json '{"new_settings": {"schedule": {"pause_status": "UNPAUSED"}}}'
+          databricks jobs update "$JOB_ID" --json '{"new_settings":{"schedule":{"quartz_cron_expression":"0 0 6 * * ?","timezone_id":"America/New_York","pause_status":"UNPAUSED"}}}'
         env:
           JOB_ID: "376440490795606"
