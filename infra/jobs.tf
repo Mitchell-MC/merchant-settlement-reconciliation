@@ -38,7 +38,7 @@ resource "databricks_job" "daily_reconciliation" {
       # how a pipeline fails silently. Loud-and-stopped beats quiet-and-wrong.
       # (The slowly-changing macro sources are exempted per-table in the yml,
       # so this never false-fires on FRPS/CBP/CPI.)
-      commands     = ["dbt deps", "dbt seed", "dbt source freshness", "dbt build"]
+      commands     = ["dbt deps", "dbt seed", "dbt source freshness", "dbt build --exclude tag:heartbeat"]
       warehouse_id = databricks_sql_endpoint.reconciliation.id
       catalog      = databricks_catalog.this.name
       schema       = "silver" # dbt_project.yml's schema configs override this per-model; this is just the connection default

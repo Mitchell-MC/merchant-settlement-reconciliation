@@ -113,4 +113,7 @@ jobs:
           # Absolute path -- a bare ".github/ci" would resolve under the
           # transform working-directory, not the repo root.
           DBT_PROFILES_DIR: ${{ github.workspace }}/.github/ci
-        run: dbt build
+        # Exclude the dead-man's-switch monitor (tag:heartbeat) -- it runs in
+        # its own heartbeat job, and would fail here whenever the daily job's
+        # last run is stale (which it is on a paused schedule).
+        run: dbt build --exclude tag:heartbeat

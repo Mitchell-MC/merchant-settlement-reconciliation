@@ -109,7 +109,9 @@ jobs:
       - name: dbt build (seeds + models + tests) against Snowflake
         env:
           DBT_PROFILES_DIR: ../.github/ci_snowflake
-        run: dbt build --target ci_snowflake
+        # Exclude the dead-man's-switch monitor (tag:heartbeat) -- it runs in
+        # snowflake_heartbeat.yml on its own schedule, not as a build step.
+        run: dbt build --target ci_snowflake --exclude tag:heartbeat
       # Turn "silent" into "loud": on any failure above (freshness gate, a
       # build/test error, or the timeout), post to an alert webhook if one is
       # configured. Wired-but-inert by default -- the parallel of the

@@ -77,7 +77,11 @@ jobs:
         run: |
           pip install "dbt-databricks>=1.8,<2.0"
           dbt deps
-          dbt build
+          # Exclude the dead-man's-switch test -- it's an operational monitor
+          # (does the pipeline still run on schedule?), run by its own
+          # heartbeat job, not a build-time data-quality check. In a deploy it
+          # would fail simply because the paused daily job's last run is stale.
+          dbt build --exclude tag:heartbeat
 
   activate-schedule:
     needs: dbt-deploy
