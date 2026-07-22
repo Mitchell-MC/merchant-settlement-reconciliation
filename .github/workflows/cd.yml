@@ -22,6 +22,14 @@ on:
     branches: [master]
   workflow_dispatch: {} # allows manually re-running the deploy/activation
 
+# Never let two deploys run at once -- a concurrent `dbt build` against the
+# same catalog collides on DDL (create table / load seed), which is exactly
+# what failed when a push and a manual dispatch overlapped. New runs queue
+# behind an in-progress one rather than cancelling it mid-deploy.
+concurrency:
+  group: cd-deploy
+  cancel-in-progress: false
+
 env:
   DATABRICKS_HOST: https://dbc-08add949-9c19.cloud.databricks.com
   DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
