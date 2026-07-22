@@ -104,11 +104,9 @@ jobs:
       - name: Install Databricks CLI
         run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
       - name: Unpause the daily reconciliation job
-        # JOB_ID is positional in the current CLI (`jobs update JOB_ID`), not a
-        # --job-id flag. `update` is a partial update, but the schedule object
-        # is replaced wholesale, so the cron/timezone must be included, not
-        # just pause_status (keep these in sync with infra/jobs.tf).
+        # With --json, the CLI takes job_id INSIDE the body (no --job-id flag,
+        # no positional arg). `update` is a partial update, but the schedule
+        # object is replaced wholesale, so include cron/timezone, not just
+        # pause_status (keep these in sync with infra/jobs.tf).
         run: |
-          databricks jobs update "$JOB_ID" --json '{"new_settings":{"schedule":{"quartz_cron_expression":"0 0 6 * * ?","timezone_id":"America/New_York","pause_status":"UNPAUSED"}}}'
-        env:
-          JOB_ID: "376440490795606"
+          databricks jobs update --json '{"job_id":376440490795606,"new_settings":{"schedule":{"quartz_cron_expression":"0 0 6 * * ?","timezone_id":"America/New_York","pause_status":"UNPAUSED"}}}'
