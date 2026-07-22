@@ -9,8 +9,13 @@ merchant_reconciliation:
       type: databricks
       catalog: merchant_recon_project
       schema: silver
-      host: "{{ env_var('DATABRICKS_HOST') }}"
+      # dbt-databricks wants a bare hostname; DATABRICKS_HOST carries the
+      # https:// scheme (which the CLI + Terraform require), so strip it here.
+      host: "{{ env_var('DATABRICKS_HOST') | replace('https://', '') }}"
       http_path: "/sql/1.0/warehouses/59901b31d31db40a"
+      # OAuth M2M (service principal) -- auth_type must be set explicitly when
+      # authenticating with client_id/client_secret rather than a token.
+      auth_type: oauth
       client_id: "{{ env_var('DATABRICKS_CLIENT_ID') }}"
       client_secret: "{{ env_var('DATABRICKS_CLIENT_SECRET') }}"
       threads: 4

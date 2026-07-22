@@ -1,42 +1,45 @@
 name: CD
 
-# Enforced deployment order, each a separate job so a failure at any stage
-# blocks everything after it: infra validation -> infra apply -> dbt deploy
-# -> schedule activation. Schedule activation is gated behind the `release`
-# GitHub Environment (configure required reviewers on it in repo settings)
-# -- unpausing the daily job is a deliberate human decision, not a side
-# effect of merging code.
+# Deploy pipeline: sync the dbt project to the workspace + run a build smoke
+# test, then activate the daily schedule behind a human approval gate.
+#
+# Infrastructure (Terraform) is deliberately NOT part of CI/CD. The Terraform
+# state is local (no remote backend), so a fresh CI runner has no state to
+# apply against -- it would try to recreate resources that already exist.
+# Infra changes are therefore a deliberate, local/manual `terraform apply`
+# where the state lives; see infra/README.md. Standing up a remote state
+# backend (S3 + lock table) is the documented path to automating infra too,
+# not implemented here. This keeps CD to the part that genuinely works from a
+# runner: dbt deploy (needs only Databricks auth, no state) + schedule
+# activation.
+#
+# activate-schedule is gated behind the `release` GitHub Environment (required
+# reviewer) -- unpausing the daily job is a deliberate human decision, not a
+# side effect of merging code.
 
 on:
   push:
     branches: [master]
-  workflow_dispatch: {} # allows manually re-running just the activation step
+  workflow_dispatch: {} # allows manually re-running the deploy/activation
 
 env:
   DATABRICKS_HOST: https://dbc-08add949-9c19.cloud.databricks.com
   DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
   DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
-  # OAuth M2M auth on the runner: blank the local CLI-profile vars so
-  # infra/providers.tf falls back to the env creds above (see that file).
-  DATABRICKS_ACCOUNT_ID: "662b79e1-4316-4bf8-9d0b-eb5666ac1d98"
-  TF_VAR_databricks_workspace_profile: ""
-  TF_VAR_databricks_account_profile: ""
+  # OAuth M2M (service principal) auth for the CLI + dbt. Deliberately NO
+  # DATABRICKS_ACCOUNT_ID here: setting it makes the SDK treat workspace calls
+  # as account-scoped and auth fails ("cannot configure default credentials").
 
 jobs:
   # CD stays wired-but-inert until deployment is DELIBERATELY turned on, via a
-  # two-part gate below:
+  # two-part gate:
   #   1. the CD_DEPLOY_ENABLED repo variable == "true"  (the explicit switch)
   #   2. the recon-ci-cd service-principal secrets exist (DATABRICKS_CLIENT_ID/
   #      SECRET -- see infra/service_principals.tf)
   # A stored secret alone does NOT start deploying -- same "enabled, not just
-  # configured" posture as the Snowflake SNOWFLAKE_DAILY_ENABLED variable. This
-  # decoupling exists because deployment is not yet CI-ready: infra/providers.tf
-  # pins local CLI profiles (meridian-dev / meridian-account) that don't exist
-  # on a runner, so terraform-apply can't auth via the OAuth env creds until
-  # that is fixed. Flip CD_DEPLOY_ENABLED to "true" only after that providers.tf
-  # env-auth fix is in and verified. Until then every deploy job skips and a
-  # push to master shows a green (skipped) CD. (Secrets/vars can't be read in a
-  # job-level `if` directly, hence this preflight-output indirection.)
+  # configured" posture as the Snowflake SNOWFLAKE_DAILY_ENABLED variable.
+  # (Secrets/vars can't be read in a job-level `if` directly, hence this
+  # preflight-output indirection.)
   preflight:
     runs-on: ubuntu-latest
     outputs:
@@ -51,30 +54,18 @@ jobs:
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::CD skipped -- set the CD_DEPLOY_ENABLED repo variable to 'true' (and the recon-ci-cd secrets) to deploy. Deployment also needs the infra/providers.tf CI-auth fix first -- see this file's header."
+            echo "::notice::CD skipped -- set the CD_DEPLOY_ENABLED repo variable to 'true' (and the recon-ci-cd secrets) to deploy."
           fi
 
-  terraform-apply:
+  dbt-deploy:
     needs: preflight
     if: needs.preflight.outputs.deploy_enabled == 'true'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: infra
     steps:
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/setup-python@v5
         with:
-          terraform_version: "1.12.2"
-      - run: terraform init
-      - run: terraform plan -var-file=environments/dev.tfvars -out=tfplan
-      - run: terraform apply -auto-approve tfplan
-
-  dbt-deploy:
-    needs: terraform-apply
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+          python-version: "3.12"
       - name: Install Databricks CLI
         run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
       - name: Sync dbt project to the workspace
@@ -91,7 +82,7 @@ jobs:
   activate-schedule:
     needs: dbt-deploy
     runs-on: ubuntu-latest
-    environment: release # requires a reviewer approval configured on this GitHub Environment
+    environment: release # required-reviewer gate configured on this GitHub Environment
     steps:
       - name: Install Databricks CLI
         run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
