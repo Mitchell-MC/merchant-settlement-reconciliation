@@ -28,6 +28,23 @@ models:
 
   - name: fct_funding_cost_summary
     description: As-of-report_date cash-at-risk and funding cost by merchant segment. See docs/kpi_contract.md #6, #7.
+    tests:
+      # Grain contract. This mart is granted to RECON_TREASURY_VIEWERS and
+      # feeds credit-line sizing, so a duplicated segment row would overstate
+      # the draw Treasury requests -- the most expensive silent error in the
+      # Gold layer. Composite because the grain is the segment tuple, not a
+      # single surrogate key.
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - report_date
+            - industry
+            - region
+            - risk_tier
+    columns:
+      - name: report_date
+        tests: [not_null]
+      - name: cash_at_risk_amount
+        tests: [not_null]
 
   - name: fct_exception_queue
     description: >
@@ -95,3 +112,12 @@ models:
     description: >
       Report-safe, pseudonymized view of fct_exception_queue for the
       BI Consumers role -- see docs/rbac_access_matrix.md.
+    columns:
+      # NOT unique, deliberately: the grain is one row per open break, not per
+      # merchant, so a merchant with several open breaks appears several times
+      # (3,425 rows across 300 merchants on the current dataset). The identity
+      # guarantee this view exists for is asserted in
+      # tests/assert_masked_view_leaks_no_merchant_identity.sql instead.
+      - name: merchant_token
+        description: sha2(merchant_id, 256). Never the raw id.
+        tests: [not_null]

@@ -15,6 +15,17 @@ models:
 
   - name: dim_payment_channel
     description: Payment channel dimension.
+    columns:
+      - name: payment_channel
+        tests: [unique, not_null]
+      # 'Other' is the catch-all in the model's case expression -- if a new
+      # channel appears upstream it lands there rather than erroring, so this
+      # test is what makes that fallback visible instead of silent.
+      - name: payment_channel_group
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['In-Person', 'Online', 'Other']
 
   - name: fct_transaction
     description: Conformed transaction-level fact.
@@ -30,6 +41,27 @@ models:
 
   - name: fct_settlement_batch
     description: Conformed settlement batch fact -- the "expected settlement" side of reconciliation.
+    tests:
+      # KPI contract #1 is the arithmetic every downstream number inherits:
+      # break amounts, cash-at-risk, and funding cost are all differences
+      # against expected_settlement_amount. If a fee or reserve component is
+      # ever dropped from the Bronze rollup, the total silently shifts and
+      # every KPI moves with it -- with no null, no duplicate, and no row-count
+      # change for the other tests to catch. This asserts the formula as
+      # written in docs/kpi_contract.md #1, per row.
+      #
+      # Tolerance is 0.01 (one cent), not exact equality: the components are
+      # DECIMAL(18,2) and the comparison is against a stored total, so a
+      # half-cent rounding difference is arithmetic noise, not a real defect.
+      # Measured max deviation on the current dataset is exactly 0.00.
+      - dbt_utils.expression_is_true:
+          expression: >
+            abs(expected_settlement_amount - (gross_sales_volume - same_day_refunds
+            - interchange_fees - network_fees - processing_fees
+            - reserve_held + reserve_released - returns_adjustments_amount)) < 0.01
+          config:
+            store_failures: true
+            limit: 500
     columns:
       - name: settlement_batch_id
         tests: [unique, not_null]
@@ -44,6 +76,25 @@ models:
 
   - name: fct_reserve_event
     description: Conformed reserve hold/release ledger.
+    columns:
+      - name: merchant_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_merchant')
+              field: merchant_id
+      # Reserve holds and releases feed KPI #1 with opposite signs, so an
+      # unrecognised third value would be silently dropped from (or wrongly
+      # added to) expected settlement by the rollup's case expression.
+      # No surrogate key exists on this table, so there is nothing to test
+      # `unique` against -- the grain is the event stream itself.
+      - name: event_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['hold', 'release']
+      - name: amount
+        tests: [not_null]
 
   - name: fct_returns_adjustment
     description: Conformed lagged return/chargeback/dispute adjustments.
@@ -55,6 +106,16 @@ models:
     description: >
       The reconciliation engine's output -- one row per settlement batch,
       with its matched bank posting(s) (if any) and match/break status.
+    tests:
+      # The engine joins batches to postings, so a fan-out here would silently
+      # double-count cash. `unique` on settlement_batch_id below catches the
+      # duplicate rows a fan-out produces, but only after the fact and without
+      # naming the cause; this asserts the grain contract directly -- exactly
+      # one output row per input batch, no more and no fewer. A drop (batches
+      # lost to an inner join that should have been a left join) is just as
+      # much a defect as a duplication, and `unique` cannot see it at all.
+      - dbt_utils.equal_rowcount:
+          compare_model: ref('fct_settlement_batch')
     columns:
       - name: settlement_batch_id
         tests: [unique, not_null]
