@@ -17,7 +17,7 @@
 Same semantic model, relationships, DAX, and report pages below — only the connector and its account/role/warehouse settings change. Like the Databricks `.pbip` above, this has not been opened in Power BI Desktop in this environment (no GUI automation available) — treat first-open as the remaining verification step for this path too.
 
 1. **Get Data → Snowflake** (built-in connector, no driver install needed in recent Power BI Desktop versions).
-2. Server: `DQC49198-QOZWHHP.snowflakecomputing.com` (or the account identifier form `DQC49198-QOZWHHP`, depending on connector version).
+2. Server: `QOZWHHP-ZLC22574.snowflakecomputing.com` (or the account identifier form `QOZWHHP-ZLC22574`, depending on connector version).
 3. Warehouse: `BI_WH` (deliberately separate from `TRANSFORM_WH` — see [infra_snowflake/README.md](../infra_snowflake/README.md) — so a Power BI refresh can never compete with a running `dbt build` for compute).
 4. Database / schema: `MERCHANT_RECON_PROJECT_DEV` / `GOLD` (and `SILVER` for the two dimension tables).
 5. Data Connectivity mode: same DirectQuery/Import split as the Databricks connection above.
