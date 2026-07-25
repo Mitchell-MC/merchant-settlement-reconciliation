@@ -6,19 +6,114 @@ models:
       One row per open (unresolved) settlement break, with aging bucket,
       cash-at-risk flag, funding cost estimate, and a root-cause hint.
       See docs/kpi_contract.md #3, #5, #6, #7.
+    # Enforced contract: dbt fails the BUILD if a column is missing, renamed,
+    # or changes type -- rather than letting the drift land and be detected
+    # downstream. This is what makes the KPI contract's "all dollar amounts
+    # are DECIMAL(18,2), never floating point" cross-cutting rule an actual
+    # constraint instead of a convention. It caught funding_cost_estimate
+    # silently being a FLOAT (cost_of_funds_rate is a float, so round() set
+    # the scale but not the stored type).
+    config:
+      contract:
+        enforced: true
     columns:
       - name: settlement_batch_id
+        description: Settlement batch with an unresolved break. Grain of this table.
+        data_type: varchar
         tests: [unique, not_null]
+      - name: merchant_id
+        description: Merchant the break belongs to.
+        data_type: varchar
+        tests: [not_null]
+      # No business_name here by design -- this table is joined to
+      # dim_merchant for the name when triage needs it, and
+      # fct_merchant_exception_trends carries the denormalized copy.
+      - name: industry
+        description: Merchant industry segment.
+        data_type: varchar
+      - name: region
+        description: Merchant geographic region.
+        data_type: varchar
+      - name: risk_tier
+        description: Merchant risk classification, drives reserve policy.
+        data_type: varchar
+      - name: batch_date
+        description: Date the settlement batch was cut.
+        data_type: date
+      - name: expected_payout_date
+        description: Contractual payout date (batch_date + merchant settlement speed, business days).
+        data_type: date
+      - name: break_first_identified_date
+        description: Date the break became visible -- the end of the reconciliation window. Aging counts from here.
+        data_type: date
+      - name: report_date
+        description: As-of date for this snapshot, for point-in-time reproducibility.
+        data_type: date
+      - name: expected_settlement_amount
+        description: KPI #1. What the merchant was owed for this batch.
+        data_type: number(18,2)
+      - name: actual_cash_received
+        description: KPI #2. Matched bank cash, or the closest candidate posting for an unmatched break.
+        data_type: number(18,2)
+      - name: break_amount
+        description: KPI #3. abs(expected - actual). Always positive.
+        data_type: number(18,2)
+      - name: age_business_days
+        description: KPI #5. Business days since break_first_identified_date, excluding weekends and federal holidays.
+        data_type: number(14,0)
       - name: aging_bucket
+        description: Bucketed age_business_days. Drives triage priority.
+        data_type: varchar
         tests:
           - accepted_values:
               values: ['0-1', '2-3', '4-7', '8-14', '15+']
+      - name: is_cash_at_risk
+        description: KPI #6. True when aged past the SLA threshold (default 5 business days).
+        data_type: boolean
+      - name: funding_cost_estimate
+        description: KPI #7. break_amount * days outstanding * cost-of-funds rate / 365.
+        data_type: number(18,2)
+      - name: root_cause_hint
+        description: Heuristic classification (timing vs. amount vs. missing posting) to speed triage. Not authoritative.
+        data_type: varchar
 
   - name: fct_daily_cash_position
     description: Daily trend of expected vs. actual cash and break/match rates. See docs/kpi_contract.md #1, #2, #4, #8.
+    config:
+      contract:
+        enforced: true
     columns:
       - name: batch_date
+        description: Settlement date. Grain of this table.
+        data_type: date
         tests: [unique, not_null]
+      - name: settlement_batch_count
+        description: Batches cut on this date.
+        data_type: number(18,0)
+      - name: matched_batch_count
+        description: Batches the engine reconciled to bank cash within tolerance.
+        data_type: number(13,0)
+      - name: break_count
+        description: Batches left unmatched -- the numerator of KPI #4 (count basis).
+        data_type: number(13,0)
+      - name: total_expected_settlement_amount
+        description: KPI #1 summed across the date.
+        data_type: number(18,2)
+      - name: total_actual_cash_received
+        description: KPI #2 summed across the date.
+        data_type: number(18,2)
+      - name: unresolved_break_amount
+        description: KPI #3 summed across the date.
+        data_type: number(18,2)
+      - name: break_rate_count_basis
+        description: KPI #4, count basis. break_count / settlement_batch_count. Drives operational triage.
+        data_type: number(20,4)
+      - name: break_rate_dollar_basis
+        description: KPI #4, dollar basis. Drives financial materiality.
+        data_type: number(38,4)
+      - name: reconciliation_match_rate
+        description: KPI #8. Straight-through rate -- the engine's own health metric.
+        data_type: number(38,4)
 
   - name: fct_merchant_exception_trends
     description: Merchant-level rollup of open breaks -- feeds the ops drill-down BI page.
@@ -69,25 +164,73 @@ models:
       settlement delay in business days, and exception counts by merchant
       segment and geography. Scores every settlement batch (matched or not),
       unlike fct_merchant_exception_trends which covers only open breaks.
+    config:
+      contract:
+        enforced: true
     columns:
       - name: merchant_id
+        description: Merchant scored. Grain of this table.
+        data_type: varchar
         tests: [unique, not_null]
+      - name: business_name
+        description: Merchant display name, denormalized from dim_merchant.
+        data_type: varchar
+      - name: industry
+        description: Merchant industry segment.
+        data_type: varchar
+      - name: region
+        description: Merchant geographic region.
+        data_type: varchar
+      - name: state
+        description: Merchant state.
+        data_type: varchar
+      - name: risk_tier
+        description: Merchant risk classification.
+        data_type: varchar
+      - name: contracted_settlement_speed_days
+        description: The merchant's contractual T+N settlement speed, in business days.
+        data_type: number(38,0)
+      - name: settlement_batch_count
+        description: All batches scored for this merchant -- the on-time-rate denominator.
+        data_type: number(18,0)
+        tests: [not_null]
+      - name: on_time_batch_count
+        description: Batches matched and settled on or before the expected payout date.
+        data_type: number(13,0)
+      - name: exception_batch_count
+        description: Batches that never matched. These have no delay value and are excluded from the average.
+        data_type: number(13,0)
       - name: on_time_settlement_rate
         description: on_time_batch_count / settlement_batch_count. Between 0 and 1 inclusive.
+        data_type: number(9,6)
         tests:
           - not_null
           - dbt_utils.accepted_range:
               min_value: 0
               max_value: 1
               inclusive: true
-      - name: settlement_batch_count
-        tests: [not_null]
       - name: avg_settlement_delay_business_days
         description: >
           Averaged over matched batches only -- unmatched batches have no
           actual settlement date, so they carry a null delay and are counted
           in exception_batch_count instead. Null when a merchant has no
           matched batches at all.
+        data_type: number(9,2)
+      - name: max_settlement_delay_business_days
+        description: Worst single-batch delay for this merchant, in business days.
+        data_type: number(14,0)
+      - name: exception_amount_usd
+        description: Expected settlement value of the batches that never matched.
+        data_type: number(18,2)
+      - name: total_expected_settlement_amount
+        description: All expected settlement for this merchant across the scored period.
+        data_type: number(18,2)
+      - name: run_id
+        description: dbt invocation_id that produced this row, for point-in-time reproducibility.
+        data_type: varchar
+      - name: as_of_date
+        description: Timestamp this snapshot was built.
+        data_type: timestamp_tz
 
   - name: fct_payment_mix_context
     description: >

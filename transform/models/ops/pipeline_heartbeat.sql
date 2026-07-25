@@ -11,8 +11,8 @@
 -- on its OWN clock, independent of this pipeline, and alerts on the ABSENCE
 -- of a recent run. That check is the singular test
 -- transform/tests/assert_pipeline_not_silent.sql, executed by the separate,
--- independently-scheduled databricks_job.pipeline_heartbeat (see
--- infra/jobs.tf). This model is the human/BI-facing companion to it.
+-- independently-scheduled .github/workflows/snowflake_heartbeat.yml. This
+-- model is the human/BI-facing companion to it.
 --
 -- IMPORTANT -- staleness is computed at READ time, not build time. This
 -- model stores last_run_completed_at; consumers compute age live with

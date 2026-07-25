@@ -41,8 +41,12 @@ break_rows as (
         m.expected_payout_date,
         m.window_end_date as break_first_identified_date,
         m.expected_settlement_amount,
-        m.actual_cash_received,
-        abs(m.expected_settlement_amount - coalesce(m.actual_cash_received, 0)) as break_amount,
+        -- Cast both to the contract's DECIMAL(18,2): Snowflake widens the
+        -- precision of arithmetic results (a subtraction of two 18,2 columns
+        -- infers as 31,2), which is harmless numerically but drifts from the
+        -- declared money type the enforced contract asserts.
+        cast(m.actual_cash_received as decimal(18,2)) as actual_cash_received,
+        cast(abs(m.expected_settlement_amount - coalesce(m.actual_cash_received, 0)) as decimal(18,2)) as break_amount,
         m.match_method as root_cause_hint,
         rs.report_date
     from matches m
@@ -81,7 +85,13 @@ select
         else '15+'
     end as aging_bucket,
     (a.age_business_days > asum.cash_at_risk_threshold_days) as is_cash_at_risk,
-    round(a.break_amount * a.age_business_days * asum.cost_of_funds_rate / 365, 2) as funding_cost_estimate,
+    -- Cast, don't just round: cost_of_funds_rate is a float, so the whole
+    -- expression is float and round() only sets the displayed scale --
+    -- the stored type stays FLOAT, violating the KPI contract's
+    -- "never floating point" rule for dollar amounts (docs/kpi_contract.md
+    -- cross-cutting rules). The enforced contract on this model now fails
+    -- the build if this regresses.
+    cast(round(a.break_amount * a.age_business_days * asum.cost_of_funds_rate / 365, 2) as decimal(18,2)) as funding_cost_estimate,
     a.root_cause_hint
 from aged a
 join {{ ref('dim_merchant') }} mer on mer.merchant_id = a.merchant_id

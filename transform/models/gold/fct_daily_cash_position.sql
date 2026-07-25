@@ -12,9 +12,12 @@ select
     count(*) as settlement_batch_count,
     sum(case when is_matched then 1 else 0 end) as matched_batch_count,
     sum(case when not is_matched then 1 else 0 end) as break_count,
-    sum(expected_settlement_amount) as total_expected_settlement_amount,
-    sum(case when is_matched then actual_cash_received else 0 end) as total_actual_cash_received,
-    sum(case when not is_matched then abs(expected_settlement_amount - coalesce(actual_cash_received, 0)) else 0 end) as unresolved_break_amount,
+    -- Cast to the contract's money type: SUM() widens precision (an 18,2
+    -- input infers as 38,2 out), which the enforced contract would flag as
+    -- a type change. See the model's entry in _gold__models.yml.
+    cast(sum(expected_settlement_amount) as decimal(18,2)) as total_expected_settlement_amount,
+    cast(sum(case when is_matched then actual_cash_received else 0 end) as decimal(18,2)) as total_actual_cash_received,
+    cast(sum(case when not is_matched then abs(expected_settlement_amount - coalesce(actual_cash_received, 0)) else 0 end) as decimal(18,2)) as unresolved_break_amount,
     round(sum(case when not is_matched then 1 else 0 end) / count(*), 4) as break_rate_count_basis,
     round(
         sum(case when not is_matched then abs(expected_settlement_amount - coalesce(actual_cash_received, 0)) else 0 end)

@@ -28,7 +28,7 @@ models:
       timestampdiff(hour, last_run_completed_at, current_timestamp()) -- it
       is deliberately NOT precomputed so a frozen table shows growing age.
       The active alert is tests/assert_pipeline_not_silent.sql, run on an
-      independent schedule by databricks_job.pipeline_heartbeat.
+      independent schedule by .github/workflows/snowflake_heartbeat.yml.
     columns:
       - name: last_run_completed_at
         description: >
