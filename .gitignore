@@ -30,6 +30,11 @@ infra/**/*.auto.tfvars
 infra_snowflake/**/.terraform/
 infra_snowflake/**/*.tfstate
 infra_snowflake/**/*.tfstate.backup
+# Terraform also writes terraform.tfstate.<epoch>.backup on some operations
+# (state rm / targeted apply); the timestamp sits mid-name so the pattern
+# above does not catch it. These leak infrastructure detail -- keep them out.
+infra_snowflake/**/*.tfstate.*.backup
+infra_snowflake/**/*.tfstate.*
 infra_snowflake/**/*.tfplan
 infra_snowflake/**/terraform.tfvars
 infra_snowflake/**/*.auto.tfvars
