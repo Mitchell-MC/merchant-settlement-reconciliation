@@ -6,7 +6,7 @@ the same lineage contract regardless of which side produced it.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import timezone
 
 import pandas as pd
 
@@ -25,7 +25,12 @@ def add_lineage(df: pd.DataFrame, source_system: str, run_id: str) -> pd.DataFra
     df = df.copy()
     df["_row_hash"] = _row_hash(df)
     df["_source_system"] = source_system
-    df["_ingestion_timestamp"] = datetime.now(timezone.utc).isoformat()
+    # Must be a real timestamp, not .isoformat() text: Parquet carries the
+    # dtype through INFER_SCHEMA into the Bronze table, and dbt's freshness
+    # check (loaded_at_field: _ingestion_timestamp in
+    # models/bronze/_bronze__sources.yml) errors with "Expected a timestamp
+    # value ... but received value of type 'str'" if this lands as TEXT.
+    df["_ingestion_timestamp"] = pd.Timestamp.now(tz=timezone.utc)
     df["_batch_id"] = run_id
     return df
 

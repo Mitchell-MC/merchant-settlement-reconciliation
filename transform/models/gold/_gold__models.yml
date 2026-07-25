@@ -46,6 +46,51 @@ models:
           - accepted_values:
               values: ['new']
 
+  - name: fct_merchant_settlement_sla
+    description: >
+      Per-merchant settlement SLA scorecard -- on-time rate, average
+      settlement delay in business days, and exception counts by merchant
+      segment and geography. Scores every settlement batch (matched or not),
+      unlike fct_merchant_exception_trends which covers only open breaks.
+    columns:
+      - name: merchant_id
+        tests: [unique, not_null]
+      - name: on_time_settlement_rate
+        description: on_time_batch_count / settlement_batch_count. Between 0 and 1 inclusive.
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+      - name: settlement_batch_count
+        tests: [not_null]
+      - name: avg_settlement_delay_business_days
+        description: >
+          Averaged over matched batches only -- unmatched batches have no
+          actual settlement date, so they carry a null delay and are counted
+          in exception_batch_count instead. Null when a merchant has no
+          matched batches at all.
+
+  - name: fct_payment_mix_context
+    description: >
+      Internal payment mix benchmarked against the Federal Reserve Payments
+      Study. See the model header for the grain caveat -- internal rows split
+      by acceptance channel, FRPS by card type, so only the 'Cards (all)'
+      roll-up row is strictly comparable and benchmark_share_of_volume is
+      intentionally null on channel rows.
+    columns:
+      - name: segment
+        tests: [unique, not_null]
+      - name: segment_kind
+        tests:
+          - accepted_values:
+              values: ['roll_up', 'acceptance_channel']
+      - name: internal_avg_ticket_usd
+        tests: [not_null]
+      - name: benchmark_collection_year
+        tests: [not_null]
+
   - name: vw_exception_queue_masked
     description: >
       Report-safe, pseudonymized view of fct_exception_queue for the

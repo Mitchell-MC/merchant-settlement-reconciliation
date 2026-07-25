@@ -1,13 +1,13 @@
 variable "snowflake_organization_name" {
   description = "Snowflake organization name (Admin -> Accounts -> Account identifier)."
   type        = string
-  default     = "DZVUEJF"
+  default     = "QOZWHHP"
 }
 
 variable "snowflake_account_name" {
   description = "Snowflake account name (Admin -> Accounts -> Account identifier)."
   type        = string
-  default     = "DF04786"
+  default     = "ZLC22574"
 }
 
 variable "snowflake_admin_user" {

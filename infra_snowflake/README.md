@@ -1,6 +1,6 @@
 # Infrastructure as Code -- Snowflake
 
-Terraform manages the Snowflake surface for this project's Snowflake retarget, run against the real, live account `DZVUEJF-DF04786` (org `DZVUEJF`, account `DF04786`, AWS-hosted). This is a **parallel stack**, not a replacement for `infra/` -- the Databricks stack keeps running unchanged so the two platforms can be compared before any cutover decision. See `docs/snowflake_migration_plan.md` for the full migration plan and parallel-run/cutover checklist.
+Terraform manages the Snowflake surface for this project's Snowflake retarget, run against the live account `DQC49198-QOZWHHP` (org `DQC49198`, account `QOZWHHP`). This stack was originally built against `DZVUEJF-DF04786` and migrated on 2026-07-25; the local Terraform state from that original bootstrap is not present in this working copy, so the migrated account is provisioned from a fresh apply rather than a state move. This is a **parallel stack**, not a replacement for `infra/` -- the Databricks stack keeps running unchanged so the two platforms can be compared before any cutover decision. See `docs/snowflake_migration_plan.md` for the full migration plan and parallel-run/cutover checklist.
 
 ## Why a separate directory instead of a second provider in `infra/`
 
