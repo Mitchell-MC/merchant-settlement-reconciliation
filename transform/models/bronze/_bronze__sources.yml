@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: bronze
-    database: "{{ target.database }}"   # resolves to the Unity Catalog catalog on Databricks, or the Snowflake database on the snowflake target -- both parameterized by infra*/*.tf per environment
+    database: "{{ target.database }}"   # resolves to the Snowflake database, parameterized by infra_snowflake/*.tf per environment
     schema: bronze
     description: >
       Raw landed tables from the synthetic operational data generator
@@ -10,7 +10,7 @@ sources:
       (FRPS, CBP, CPI). Immutable, append-only, carries lineage metadata
       on every row. See docs/non_functional_targets.md for the Bronze
       immutability contract.
-    loader: "{{ 'snowflake_copy_into' if target.type == 'snowflake' else 'databricks_copy_into' }}"   # doc-only field; see scripts/load_bronze_to_snowflake.py for the actual Snowflake load mechanism
+    loader: snowflake_copy_into   # doc-only field; see scripts/load_bronze_to_snowflake.py for the actual load mechanism
     # Source-level default freshness applies to the OPERATIONAL tables
     # (merchants/transactions/settlement_batches/reserve_events/
     # returns_adjustments/bank_movements) -- the daily feed whose silence is

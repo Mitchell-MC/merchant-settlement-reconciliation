@@ -31,10 +31,10 @@ flagged as (
         -- nothing downstream reads day_of_week_num's raw value.
         dayofweek(date_day) as day_of_week_num,
         dayname(date_day) as day_name,
-        case when dayofweek(date_day) in {{ "(0, 6)" if target.type == "snowflake" else "(1, 7)" }} then true else false end as is_weekend,
+        case when dayofweek(date_day) in (0, 6) then true else false end as is_weekend,
         case when h.holiday_date is not null then true else false end as is_federal_holiday,
         case
-            when dayofweek(date_day) not in {{ "(0, 6)" if target.type == "snowflake" else "(1, 7)" }} and h.holiday_date is null then true
+            when dayofweek(date_day) not in (0, 6) and h.holiday_date is null then true
             else false
         end as is_business_day,
         year(date_day) as year,

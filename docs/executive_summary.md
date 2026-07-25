@@ -9,13 +9,13 @@ A payment facilitator owes thousands of merchants money every day. The bank does
 
 ## What was built
 
-A production-styled batch reconciliation platform on Databricks/Unity Catalog:
+A production-styled batch reconciliation platform on Snowflake:
 
 - **A reconciliation engine** that matches expected settlement to actual bank cash using a documented, configurable date-window and amount-tolerance policy — not ad hoc spreadsheet logic.
 - **A synthetic operational dataset** (300 merchants, 6 months, ~1M transactions) with segmentation weights derived from real Census County Business Patterns data, and 6 deliberately injected break patterns used to validate the engine's accuracy end-to-end.
 - **A tested medallion lakehouse** (Bronze → Silver → Gold) with 93+ passing data-quality tests, including custom finance-grade assertions (control totals, tolerance-invariant checks, aging SLA breach triggers) — not just generic null checks.
-- **A governed access model**: 4 RBAC tiers enforced with real Unity Catalog grants, a pseudonymized view for wide BI audiences, and a documented lineage/glossary trail.
-- **Infrastructure as code**: the entire Databricks surface (catalog, schemas, warehouse, RBAC groups, grants, the daily job) is Terraform-managed and reproducible.
+- **A governed access model**: 4 RBAC tiers enforced with real Snowflake account-role grants, a pseudonymized view for wide BI audiences, and a documented lineage/glossary trail.
+- **Infrastructure as code**: the entire Snowflake surface (database, schemas, warehouses, account roles, grants, service user, Bronze landing stage) is Terraform-managed and reproducible.
 - **A CI/CD pipeline** enforcing infra validation → transformation tests → a deliberate, human-approved schedule-activation step.
 - **An executive dashboard** with live Gold-layer data: cash position trends, break aging, cash-at-risk by segment, and a merchant-level drill-down.
 
@@ -37,9 +37,9 @@ Every dollar in the Gold layer traces exactly back to Bronze — verified live, 
 ## What's next (roadmap, if this were a real deployment)
 
 1. Real bank file formats (BAI2/NACHA) instead of a synthetic bank-movement feed.
-2. A full classic Databricks workspace inside Meridian Pay's own AWS VPC (cross-account IAM, dedicated storage) — the current Express/serverless workspace was the right choice for a portfolio build, not for a regulated production deployment.
+2. Network-level isolation (private connectivity, IP allowlisting) and a customer-managed encryption key — the current trial-tier account was the right choice for a portfolio build, not for a regulated production deployment.
 3. Automated break-resolution suggestions using historical root-cause patterns (the `root_cause_hint` field already captures the signal this would train on).
 4. Multi-currency support.
-5. Real distinct human identities in the RBAC groups via SSO/SCIM (currently structurally correct but unpopulated — see [rbac_access_matrix.md](rbac_access_matrix.md)).
+5. Real distinct human identities in the RBAC roles via SSO/SCIM (currently structurally correct but unpopulated — see [rbac_access_matrix.md](rbac_access_matrix.md)).
 
 See [charter/PROJECT_CHARTER.md](../charter/PROJECT_CHARTER.md) for the full business framing.

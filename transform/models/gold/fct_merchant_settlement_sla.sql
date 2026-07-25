@@ -25,7 +25,6 @@ date_seq as (
 -- a split match the batch is not settled until its final component lands,
 -- so max() (not min()) is the correct cash-received date.
 matched_posting_dates as (
-{% if target.type == "snowflake" %}
     select
         m.settlement_batch_id,
         max(bm.posting_date) as actual_settlement_date
@@ -34,16 +33,6 @@ matched_posting_dates as (
     join {{ ref('fct_bank_movement') }} bm on bm.posting_id = f.value::string
     where m.is_matched
     group by m.settlement_batch_id
-{% else %}
-    select
-        m.settlement_batch_id,
-        max(bm.posting_date) as actual_settlement_date
-    from matches m
-    lateral view explode(m.matched_posting_ids) t as posting_id
-    join {{ ref('fct_bank_movement') }} bm on bm.posting_id = t.posting_id
-    where m.is_matched
-    group by m.settlement_batch_id
-{% endif %}
 ),
 
 batch_scored as (

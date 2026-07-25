@@ -7,9 +7,9 @@
 Before merging to `main`:
 
 - [ ] `dbt build` passes locally (`cd transform && dbt build`) — all tests green or only expected `WARN`s (e.g. `assert_aging_sla_breach_trigger` warning on a static historical dataset is expected, not a regression)
-- [ ] `terraform plan -var-file=environments/dev.tfvars` in `infra/` shows only the intended diff — no surprise `force replacement`s (see the `storage_root` incident in [infra/README.md](../infra/README.md) for why this matters)
+- [ ] `terraform plan -var-file=environments/dev.tfvars` in `infra_snowflake/` shows only the intended diff — no surprise `force replacement`s. One diff is expected and cosmetic: the `snowflake_stage.bronze_landing` file-format escaping drift documented in [infra_snowflake/README.md](../infra_snowflake/README.md)
 - [ ] If a KPI formula changed: [docs/kpi_contract.md](kpi_contract.md) updated in the same PR (see that doc's cross-cutting rules)
-- [ ] If a new Gold table/column is merchant-identifiable: [docs/rbac_access_matrix.md](rbac_access_matrix.md) updated, and a grant added in `infra/grants.tf` for the roles that should see it
+- [ ] If a new Gold table/column is merchant-identifiable: [docs/rbac_access_matrix.md](rbac_access_matrix.md) updated, and a grant added in `infra_snowflake/grants.tf` for the roles that should see it
 
 After merge (CD pipeline, see `.github/workflows/cd.yml`):
 
@@ -31,8 +31,9 @@ After merge (CD pipeline, see `.github/workflows/cd.yml`):
 
 **If Terraform apply broke something (e.g. a bad grant change locked out a role):**
 1. `terraform plan` immediately to see the exact diff that just applied.
-2. If it's a grants regression, the fastest fix is usually re-applying the previous commit's `infra/grants.tf` (`git revert` + `terraform apply`), not a manual `GRANT` — a manual grant will just get reverted by the next `apply` anyway (`databricks_grants` is authoritative, see [infra/README.md](../infra/README.md)).
-3. Never `terraform apply` a fix without reading `plan` output first — that's exactly how the `storage_root` incident was caught instead of becoming a real outage.
+2. If it's a grants regression, the fastest fix is usually re-applying the previous commit's `infra_snowflake/grants.tf` (`git revert` + `terraform apply`), not a manual `GRANT` — a manual grant drifts from state and will confuse the next `apply` (see [infra_snowflake/README.md](../infra_snowflake/README.md)).
+3. Never `terraform apply` a fix without reading `plan` output first.
+4. **If objects were dropped outside Terraform**, state still records the old grants and reports them as applied, so a plain `apply` is a no-op while roles stay locked out. Symptom: `SHOW DATABASES` returns nothing for the role even though the database exists. Fix: `terraform state rm` the affected grant resources, then `apply` to recreate them against the new objects.
 
 ## Controlled backfill procedure
 
