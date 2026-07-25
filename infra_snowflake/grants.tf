@@ -109,6 +109,21 @@ resource "snowflake_grant_privileges_to_account_role" "engineering_bronze_stage_
   }
 }
 
+# The file format is a separately-owned object from the stage, so the stage
+# grant above does NOT cover it -- both the INFER_SCHEMA and COPY INTO calls
+# in scripts/load_bronze_to_snowflake.py name BRONZE.PARQUET_FORMAT
+# explicitly and need USAGE on it in their own right. Without this grant
+# Snowflake reports the format as "does not exist or not authorized", which
+# reads like a missing object but is purely a privilege gap.
+resource "snowflake_grant_privileges_to_account_role" "engineering_bronze_file_format_usage" {
+  account_role_name = snowflake_account_role.engineering.name
+  privileges         = ["USAGE"]
+  on_schema_object {
+    object_type = "FILE FORMAT"
+    object_name = "\"${snowflake_database.this.name}\".\"${snowflake_schema.bronze.name}\".\"${snowflake_file_format.parquet.name}\""
+  }
+}
+
 # --- Database level ---
 
 resource "snowflake_grant_privileges_to_account_role" "engineering_database_all" {
