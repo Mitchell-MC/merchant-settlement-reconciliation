@@ -149,11 +149,19 @@ def load_table(cur, table: str) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tables", help="Comma-separated subset of tables to load (default: all)")
-    parser.add_argument("--profiles-target", default="snowflake", help="Output name in the profiles file (e.g. 'snowflake' for local dev, 'ci_snowflake' in CI)")
+    parser.add_argument(
+        "--profiles-target",
+        default="snowflake",
+        help="Output name in the profiles file (e.g. 'snowflake' for local dev, 'ci_snowflake' in CI)",
+    )
     parser.add_argument(
         "--profiles-path",
         default=str(PROFILES_PATH),
-        help="Path to the dbt profiles.yml. Defaults to transform/profiles.yml (local dev, gitignored); CI passes .github/ci_snowflake/profiles.yml since the local one is not present there.",
+        help=(
+            "Path to the dbt profiles.yml. Defaults to transform/profiles.yml (local dev, "
+            "gitignored); CI passes .github/ci_snowflake/profiles.yml since the local one "
+            "is not present there."
+        ),
     )
     args = parser.parse_args()
 

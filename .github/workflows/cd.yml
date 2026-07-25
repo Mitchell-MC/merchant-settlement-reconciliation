@@ -1,21 +1,29 @@
 name: CD
 
-# Deploy pipeline: sync the dbt project to the workspace + run a build smoke
-# test, then activate the daily schedule behind a human approval gate.
+# Deploy pipeline: run a dbt build smoke test against the live database, then
+# activate the daily schedule behind a human approval gate.
 #
 # Infrastructure (Terraform) is deliberately NOT part of CI/CD. The Terraform
 # state is local (no remote backend), so a fresh CI runner has no state to
 # apply against -- it would try to recreate resources that already exist.
 # Infra changes are therefore a deliberate, local/manual `terraform apply`
-# where the state lives; see infra/README.md. Standing up a remote state
-# backend (S3 + lock table) is the documented path to automating infra too,
-# not implemented here. This keeps CD to the part that genuinely works from a
-# runner: dbt deploy (needs only Databricks auth, no state) + schedule
-# activation.
+# where the state lives; see infra_snowflake/README.md. Standing up a remote
+# state backend (S3 + lock table) is the documented path to automating infra
+# too, not implemented here. This keeps CD to the part that genuinely works
+# from a runner: the dbt build smoke test + schedule activation.
+#
+# NO WORKSPACE-SYNC STEP: the Databricks predecessor of this workflow ran
+# `databricks sync` to push the dbt project into /Shared on the workspace,
+# because the scheduled job executed from workspace files. The Snowflake
+# target has no such concept -- the daily workflow checks the repo out on the
+# runner and runs dbt there, so the repo IS the deployed artifact and there is
+# nothing to copy anywhere. The smoke test below is what "deploy" means here:
+# proof that master builds green against the real database before the
+# schedule is allowed to run it unattended.
 #
 # activate-schedule is gated behind the `release` GitHub Environment (required
-# reviewer) -- unpausing the daily job is a deliberate human decision, not a
-# side effect of merging code.
+# reviewer) -- enabling the daily schedule is a deliberate human decision, not
+# a side effect of merging code.
 
 on:
   push:
@@ -28,7 +36,7 @@ on:
   workflow_dispatch: {} # allows manually re-running the deploy/activation
 
 # Never let two deploys run at once -- a concurrent `dbt build` against the
-# same catalog collides on DDL (create table / load seed), which is exactly
+# same database collides on DDL (create table / load seed), which is exactly
 # what failed when a push and a manual dispatch overlapped. New runs queue
 # behind an in-progress one rather than cancelling it mid-deploy.
 concurrency:
@@ -36,21 +44,17 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  DATABRICKS_HOST: https://dbc-08add949-9c19.cloud.databricks.com
-  DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
-  DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
-  # OAuth M2M (service principal) auth for the CLI + dbt. Deliberately NO
-  # DATABRICKS_ACCOUNT_ID here: setting it makes the SDK treat workspace calls
-  # as account-scoped and auth fails ("cannot configure default credentials").
+  SNOWFLAKE_ACCOUNT: "QOZWHHP-ZLC22574"
+  SNOWFLAKE_CI_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_CI_PRIVATE_KEY }}
 
 jobs:
   # CD stays wired-but-inert until deployment is DELIBERATELY turned on, via a
   # two-part gate:
   #   1. the CD_DEPLOY_ENABLED repo variable == "true"  (the explicit switch)
-  #   2. the recon-ci-cd service-principal secrets exist (DATABRICKS_CLIENT_ID/
-  #      SECRET -- see infra/service_principals.tf)
+  #   2. the RECON_CI_SVC private key secret exists (SNOWFLAKE_CI_PRIVATE_KEY
+  #      -- see infra_snowflake/service_user.tf)
   # A stored secret alone does NOT start deploying -- same "enabled, not just
-  # configured" posture as the Snowflake SNOWFLAKE_DAILY_ENABLED variable.
+  # configured" posture as the SNOWFLAKE_DAILY_ENABLED variable.
   # (Secrets/vars can't be read in a job-level `if` directly, hence this
   # preflight-output indirection.)
   preflight:
@@ -60,14 +64,14 @@ jobs:
     steps:
       - id: check
         env:
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          SNOWFLAKE_CI_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_CI_PRIVATE_KEY }}
           CD_DEPLOY_ENABLED: ${{ vars.CD_DEPLOY_ENABLED }}
         run: |
-          if [ "$CD_DEPLOY_ENABLED" = "true" ] && [ -n "$DATABRICKS_CLIENT_ID" ]; then
+          if [ "$CD_DEPLOY_ENABLED" = "true" ] && [ -n "$SNOWFLAKE_CI_PRIVATE_KEY" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::CD skipped -- set the CD_DEPLOY_ENABLED repo variable to 'true' (and the recon-ci-cd secrets) to deploy."
+            echo "::notice::CD skipped -- set the CD_DEPLOY_ENABLED repo variable to 'true' (and the SNOWFLAKE_CI_PRIVATE_KEY secret) to deploy."
           fi
 
   dbt-deploy:
@@ -79,34 +83,38 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install Databricks CLI
-        run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
-      - name: Sync dbt project to the workspace
-        run: databricks sync --full transform /Shared/merchant_reconciliation/transform
       - name: Run dbt build once as a deploy-time smoke test
         working-directory: transform
         env:
-          DBT_PROFILES_DIR: ../.github/ci
+          DBT_PROFILES_DIR: ../.github/ci_snowflake
         run: |
-          pip install "dbt-databricks>=1.8,<2.0"
+          pip install "dbt-snowflake>=1.8,<2.0"
           dbt deps
           # Exclude the dead-man's-switch test -- it's an operational monitor
           # (does the pipeline still run on schedule?), run by its own
-          # heartbeat job, not a build-time data-quality check. In a deploy it
-          # would fail simply because the paused daily job's last run is stale.
-          dbt build --exclude tag:heartbeat
+          # heartbeat workflow, not a build-time data-quality check. In a
+          # deploy it would fail simply because the paused daily schedule's
+          # last run is stale.
+          dbt build --target ci_snowflake --exclude tag:heartbeat
 
   activate-schedule:
     needs: dbt-deploy
     runs-on: ubuntu-latest
     environment: release # required-reviewer gate configured on this GitHub Environment
     steps:
-      - name: Install Databricks CLI
-        run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
-      - name: Unpause the daily reconciliation job
-        # With --json, the CLI takes job_id INSIDE the body (no --job-id flag,
-        # no positional arg). `update` is a partial update, but the schedule
-        # object is replaced wholesale, so include cron/timezone, not just
-        # pause_status (keep these in sync with infra/jobs.tf).
+      # The Snowflake daily run is scheduled by GitHub Actions cron, not by a
+      # warehouse-side job object, so "activation" is flipping the repo
+      # variable the daily workflow gates on (see snowflake_daily.yml's
+      # `vars.SNOWFLAKE_DAILY_ENABLED` condition) rather than an API call to
+      # unpause a job. Needs a token with `variables: write`; GITHUB_TOKEN
+      # cannot write repo variables, hence the PAT.
+      - name: Enable the daily reconciliation schedule
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
         run: |
-          databricks jobs update --json '{"job_id":376440490795606,"new_settings":{"schedule":{"quartz_cron_expression":"0 0 6 * * ?","timezone_id":"America/New_York","pause_status":"UNPAUSED"}}}'
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::REPO_ADMIN_TOKEN is not set -- cannot flip SNOWFLAKE_DAILY_ENABLED. Set it, or enable the variable manually under Settings -> Secrets and variables -> Actions -> Variables."
+            exit 1
+          fi
+          gh variable set SNOWFLAKE_DAILY_ENABLED --body "true" --repo "$GITHUB_REPOSITORY"
+          echo "::notice::SNOWFLAKE_DAILY_ENABLED set to true -- the daily reconciliation schedule is now live."

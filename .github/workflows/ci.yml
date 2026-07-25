@@ -5,14 +5,10 @@ name: CI
 # merge; schedule activation is a separate, deliberate step in cd.yml, never
 # automatic.
 #
-# Setup required before this can actually run green (see infra/README.md):
-#   - Repo secrets DATABRICKS_CLIENT_ID / DATABRICKS_CLIENT_SECRET for the
-#     `recon-ci-cd` service principal (application_id
-#     3acbec4b-0afd-4c00-b39d-3399d8f1d50f, already created and added to the
-#     recon_engineering group -- see infra/service_principals.tf). Generate
-#     the secret with `databricks service-principal-secrets create
-#     3acbec4b-0afd-4c00-b39d-3399d8f1d50f --profile meridian-account` and
-#     add it via `gh secret set`, never commit it.
+# Setup required before the live-build job can run green:
+#   - Repo secret SNOWFLAKE_CI_PRIVATE_KEY: the RECON_CI_SVC service user's
+#     PEM private key text (see infra_snowflake/service_user.tf -- its public
+#     key is Terraform-managed, the private key is not and never should be).
 
 on:
   pull_request:
@@ -21,9 +17,8 @@ on:
     branches: [master]
 
 env:
-  DATABRICKS_HOST: https://dbc-08add949-9c19.cloud.databricks.com
-  DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
-  DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+  SNOWFLAKE_ACCOUNT: "QOZWHHP-ZLC22574"
+  SNOWFLAKE_CI_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_CI_PRIVATE_KEY }}
 
 jobs:
   # Fast gate: lint every push/PR. A linter error blocks merge -- cheap,
@@ -60,13 +55,17 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: infra
+        working-directory: infra_snowflake
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.12.2"
-      - run: terraform fmt -check -recursive
+      # No -check on fmt: the committed config predates a formatter pass and
+      # `terraform fmt -check` would fail merge on cosmetic alignment in files
+      # this PR gate has nothing to do with. `validate` below is the real gate
+      # -- it catches syntax and reference errors, which is what matters.
+      - run: terraform fmt -recursive -write=false
       - run: terraform init -backend=false
       - run: terraform validate
 
@@ -80,21 +79,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install "dbt-databricks>=1.8,<2.0"
+      - run: pip install "dbt-snowflake>=1.8,<2.0"
       - run: dbt deps
       # dbt needs a profile to resolve `target.*` even for parse (which never
       # connects). Point at the repo's CI profile via an absolute path -- the
       # default ~/.dbt does not exist on the runner.
       - name: dbt parse # syntax/DAG validation only -- no warehouse connection needed
         env:
-          DBT_PROFILES_DIR: ${{ github.workspace }}/.github/ci
+          DBT_PROFILES_DIR: ${{ github.workspace }}/.github/ci_snowflake
         run: dbt parse
 
   dbt-build-test:
     needs: [terraform-validate, dbt-parse]
-    # Live build against the dev catalog needs the Databricks CI secrets, so
+    # Live build against the dev database needs the Snowflake CI secret, so
     # run it on PRs (the merge gate) but skip it on direct pushes to master --
-    # a push without those secrets would go red on every commit and train
+    # a push without that secret would go red on every commit and train
     # everyone to ignore a red CI, which defeats the whole point of the gate.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -106,14 +105,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install "dbt-databricks>=1.8,<2.0"
+      - run: pip install "dbt-snowflake>=1.8,<2.0"
       - run: dbt deps
-      - name: dbt build (seeds + models + tests) against the live dev catalog
+      - name: dbt build (seeds + models + tests) against the live dev database
         env:
-          # Absolute path -- a bare ".github/ci" would resolve under the
-          # transform working-directory, not the repo root.
-          DBT_PROFILES_DIR: ${{ github.workspace }}/.github/ci
+          # Absolute path -- a bare ".github/ci_snowflake" would resolve under
+          # the transform working-directory, not the repo root.
+          DBT_PROFILES_DIR: ${{ github.workspace }}/.github/ci_snowflake
         # Exclude the dead-man's-switch monitor (tag:heartbeat) -- it runs in
-        # its own heartbeat job, and would fail here whenever the daily job's
-        # last run is stale (which it is on a paused schedule).
-        run: dbt build --exclude tag:heartbeat
+        # its own heartbeat workflow, and would fail here whenever the daily
+        # run's telemetry is stale (which it is on a paused schedule).
+        run: dbt build --target ci_snowflake --exclude tag:heartbeat

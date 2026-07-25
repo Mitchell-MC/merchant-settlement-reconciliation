@@ -1,23 +1,10 @@
-# Copy to transform/profiles.yml (gitignored) and fill in your workspace values.
-# No secrets belong in this file -- `dev`'s auth_type: oauth triggers an
-# interactive browser login on first dbt command (token cached in your OS
-# keychain); `snowflake`'s private_key_path points outside the repo (see
-# infra_snowflake/README.md) and holds no key material itself.
-#
-# `dev` (Databricks) stays the default target during the Snowflake parallel
-# run -- select Snowflake explicitly with `dbt build --target snowflake`.
+# Copy to transform/profiles.yml (gitignored) and fill in your account values.
+# No secrets belong in this file -- `private_key_path` points at a key kept
+# outside the repo (see infra_snowflake/README.md) and holds no key material
+# itself.
 merchant_reconciliation:
-  target: dev
+  target: snowflake
   outputs:
-    dev:
-      type: databricks
-      catalog: merchant_recon_project
-      schema: silver
-      host: "<your-workspace>.cloud.databricks.com"
-      http_path: "/sql/1.0/warehouses/<warehouse-id>"
-      auth_type: oauth
-      threads: 4
-
     snowflake:
       type: snowflake
       account: "<org-name>-<account-name>"

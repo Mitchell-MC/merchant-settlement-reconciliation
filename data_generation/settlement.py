@@ -26,7 +26,11 @@ def _aggregate_daily_volume(transactions: pd.DataFrame) -> pd.DataFrame:
     refunds = transactions[transactions["transaction_type"] == "refund"]
 
     gross = sales.groupby(["merchant_id", "transaction_date"])["amount"].sum().rename("gross_sales_volume")
-    refund_sum = refunds.groupby(["merchant_id", "transaction_date"])["amount"].apply(lambda s: -s.sum()).rename("same_day_refunds")
+    refund_sum = (
+        refunds.groupby(["merchant_id", "transaction_date"])["amount"]
+        .apply(lambda s: -s.sum())
+        .rename("same_day_refunds")
+    )
     txn_count = transactions.groupby(["merchant_id", "transaction_date"]).size().rename("transaction_count")
 
     agg = pd.concat([gross, refund_sum, txn_count], axis=1).fillna(0.0).reset_index()
@@ -80,7 +84,8 @@ def generate_settlement_batches(
         if reserve_released > 0:
             reserve_event_rows.append({
                 "merchant_id": merchant_id, "event_type": "release", "event_date": batch_date,
-                "amount": reserve_released, "related_date": batch_date - timedelta(days=config.reserve_hold_window_days),
+                "amount": reserve_released,
+                "related_date": batch_date - timedelta(days=config.reserve_hold_window_days),
             })
 
         returns_amount = 0.0

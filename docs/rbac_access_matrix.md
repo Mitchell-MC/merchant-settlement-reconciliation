@@ -53,7 +53,7 @@ Schema-level `SELECT` grants (e.g. on `silver`) cascade to all current and futur
 
 ## Snowflake retarget: same matrix, same verification discipline
 
-This is also implemented and verified, not aspirational, against the live Snowflake account `DZVUEJF-DF04786`. Four account roles (`RECON_ENGINEERING`, `RECON_TREASURY_VIEWERS`, `RECON_FINANCE_ANALYSTS`, `RECON_BI_CONSUMERS`) reproduce the exact same matrix above via [infra_snowflake/grants.tf](../infra_snowflake/grants.tf) -- see [infra_snowflake/README.md](../infra_snowflake/README.md) for the mechanical differences (Snowflake needs an `ALL` + `FUTURE` grant pair where Databricks' schema-level `SELECT` cascades on its own; explicit warehouse `USAGE`; no `storage_root`-style drift gotcha).
+This is also implemented and verified, not aspirational, against the live Snowflake account `QOZWHHP-ZLC22574` (re-verified there on 2026-07-25 after migrating off the original `DZVUEJF-DF04786` account; the full 48-resource stack applied cleanly and `dbt build` ran green). Four account roles (`RECON_ENGINEERING`, `RECON_TREASURY_VIEWERS`, `RECON_FINANCE_ANALYSTS`, `RECON_BI_CONSUMERS`) reproduce the exact same matrix above via [infra_snowflake/grants.tf](../infra_snowflake/grants.tf) -- see [infra_snowflake/README.md](../infra_snowflake/README.md) for the mechanical differences (Snowflake needs an `ALL` + `FUTURE` grant pair where Databricks' schema-level `SELECT` cascades on its own; explicit warehouse `USAGE`; no `storage_root`-style drift gotcha).
 
 Role name mapping (Databricks group -> Snowflake role):
 

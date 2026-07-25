@@ -1,6 +1,6 @@
 # Snowflake Migration: What Was Built, What It Found, and the Cutover Checklist
 
-This documents a real, verified retarget of the platform onto Snowflake, run in parallel with the live Databricks build (see [architecture.md](architecture.md)) — not a paper plan. Every claim below was checked against the live Snowflake account `DZVUEJF-DF04786`, not assumed from documentation.
+This documents a real, verified retarget of the platform onto Snowflake, run in parallel with the live Databricks build (see [architecture.md](architecture.md)) — not a paper plan. Every claim below was checked against a live Snowflake account, not assumed from documentation -- originally `DZVUEJF-DF04786`, and re-verified end-to-end on `QOZWHHP-ZLC22574` on 2026-07-25 after the platform migrated there.
 
 ## Target architecture
 

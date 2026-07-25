@@ -118,6 +118,11 @@ def main(url: str = DEFAULT_URL, naics_digits: int = 2) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ingest the CBP county-level establishment file.")
     parser.add_argument("--url", default=DEFAULT_URL)
-    parser.add_argument("--naics-digits", type=int, default=2, help="NAICS aggregation level to keep (default: 2-digit sector)")
+    parser.add_argument(
+        "--naics-digits",
+        type=int,
+        default=2,
+        help="NAICS aggregation level to keep (default: 2-digit sector)",
+    )
     args = parser.parse_args()
     main(args.url, args.naics_digits)

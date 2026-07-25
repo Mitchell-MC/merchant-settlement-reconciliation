@@ -1,3 +1,8 @@
 pytest>=8.0
 pytest-cov>=5.0
-ruff>=0.6
+# Upper-bounded on purpose: a linter is a merge gate, so an unpinned range
+# means a new ruff release can turn every PR red without a code change. Ruff
+# 0.16 did exactly that -- it widened the default rule set to include UP/RUF/
+# DTZ, which the [tool.ruff.lint] config below never opted into. Raise this
+# ceiling deliberately, with the resulting fixes in the same commit.
+ruff>=0.6,<0.17

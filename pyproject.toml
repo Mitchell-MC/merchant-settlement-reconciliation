@@ -14,7 +14,11 @@ extend-exclude = [".venv", "data", "transform/dbt_packages", "**/target"]
 # E402 (import not at top) is deliberate in the ingestion scripts -- they
 # insert PROJECT_ROOT onto sys.path before importing common.*, and already
 # carry per-line `# noqa: E402`.
-extend-select = ["I"] # import sorting -- keeps import blocks deterministic
+# Stated explicitly rather than leaning on ruff's implicit defaults: those
+# defaults are not stable across releases (0.16 widened them to UP/RUF/DTZ),
+# and a merge gate whose rule set changes when a transitive pin floats is a
+# gate that fails for reasons unrelated to the PR under review.
+select = ["F", "E", "I"] # pyflakes + pycodestyle errors + import sorting
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
