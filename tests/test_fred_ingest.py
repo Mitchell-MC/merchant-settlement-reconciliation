@@ -1,5 +1,4 @@
 import pytest
-
 from fred_ingest import _parse_observations, main
 
 SAMPLE_OBSERVATIONS = [
