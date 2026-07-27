@@ -68,7 +68,14 @@ select
     a.merchant_id,
     mer.industry,
     mer.region,
-    mer.risk_tier,
+    -- As-of the break's own identified date, not the merchant's CURRENT
+    -- risk_tier: a merchant re-tiered after this break occurred must not
+    -- have its historical breaks silently reclassified under the new tier.
+    -- See dim_merchant_history.sql / dim_merchant_snapshot.sql. Falls back
+    -- to dim_merchant's current value only for a break older than the
+    -- snapshot's own history (no version covers that date yet) -- current
+    -- tier is a reasonable best-effort there, not a silent null.
+    coalesce(hist.risk_tier, mer.risk_tier) as risk_tier,
     a.batch_date,
     a.expected_payout_date,
     a.break_first_identified_date,
@@ -95,4 +102,8 @@ select
     a.root_cause_hint
 from aged a
 join {{ ref('dim_merchant') }} mer on mer.merchant_id = a.merchant_id
+left join {{ ref('dim_merchant_history') }} hist
+    on hist.merchant_id = a.merchant_id
+   and cast(a.break_first_identified_date as timestamp_tz) >= hist.valid_from
+   and cast(a.break_first_identified_date as timestamp_tz) < hist.valid_to
 cross join assumptions asum

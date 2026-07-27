@@ -2,10 +2,30 @@ version: 2
 
 models:
   - name: dim_merchant
-    description: Conformed merchant dimension.
+    description: >
+      Conformed merchant dimension -- CURRENT state only. For a merchant's
+      risk_tier/fee/speed attributes as of a past date, use
+      dim_merchant_history instead (backed by the dim_merchant_snapshot
+      SCD2 snapshot).
     columns:
       - name: merchant_id
         tests: [unique, not_null]
+
+  - name: dim_merchant_history
+    description: >
+      Point-in-time merchant attributes (SCD2), one row per
+      (merchant_id, valid_from..valid_to) version. Built from
+      dim_merchant_snapshot. Use this -- not dim_merchant -- whenever a
+      consumer needs "what was true about this merchant as of date X"
+      rather than "what is true about this merchant right now."
+    columns:
+      - name: merchant_id
+        tests: [not_null]
+      - name: valid_from
+        tests: [not_null]
+      - name: valid_to
+        tests: [not_null]
+      - name: risk_tier
 
   - name: dim_date
     description: Date spine with US Federal Reserve holiday calendar and business-day sequencing.

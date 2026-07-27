@@ -1,0 +1,14 @@
+version: 2
+
+snapshots:
+  - name: dim_merchant_snapshot
+    description: >
+      SCD2 history of Bronze merchants, check-strategy on the mutable
+      contract-term columns (risk_tier, reserve_rate_bps,
+      processing_fee_bps, settlement_speed_business_days). Consumed via
+      dim_merchant_history (Silver), not directly, by downstream models.
+    columns:
+      - name: merchant_id
+        tests: [not_null]
+      - name: dbt_valid_from
+        tests: [not_null]

@@ -35,7 +35,10 @@ models:
         description: Merchant geographic region.
         data_type: varchar
       - name: risk_tier
-        description: Merchant risk classification, drives reserve policy.
+        description: >
+          Merchant risk classification, drives reserve policy. As-of
+          break_first_identified_date (via dim_merchant_history), not the
+          merchant's current tier -- see fct_reconciliation_breaks.sql.
         data_type: varchar
       - name: batch_date
         description: Date the settlement batch was cut.
@@ -143,9 +146,12 @@ models:
 
   - name: fct_exception_queue
     description: >
-      Triage-ready queue of open breaks with a suggested owner role,
-      severity, and SLA due date. Rebuilt fully each run (see model header
-      comment for the known persistence limitation).
+      Triage-ready queue of breaks with a suggested owner role, severity,
+      and SLA due date. Incremental merge keyed on settlement_batch_id --
+      analyst-set triage_status/notes/owner survive future runs (see model
+      header comment). A row whose break has since resolved is closed out
+      (triage_status = 'resolved') rather than removed, so it stays as a
+      queue record instead of silently disappearing.
     columns:
       - name: settlement_batch_id
         tests: [unique, not_null]
@@ -156,7 +162,7 @@ models:
       - name: triage_status
         tests:
           - accepted_values:
-              values: ['new']
+              values: ['new', 'resolved']
 
   - name: fct_merchant_settlement_sla
     description: >
