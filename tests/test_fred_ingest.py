@@ -1,4 +1,6 @@
-from fred_ingest import _parse_observations
+import pytest
+
+from fred_ingest import _parse_observations, main
 
 SAMPLE_OBSERVATIONS = [
     {"realtime_start": "2026-01-01", "realtime_end": "2026-01-01", "date": "2026-01-01", "value": "5.33"},
@@ -31,3 +33,12 @@ def test_parse_observations_carries_series_metadata():
 def test_parse_observations_empty_list_returns_empty_frame():
     df = _parse_observations("FEDFUNDS", "effective_federal_funds_rate", [])
     assert len(df) == 0
+
+
+def test_main_without_api_key_raises_runtime_error(monkeypatch):
+    # Unlike cpi_ingest (BLS key is optional), FRED has no unauthenticated
+    # fallback -- main() must fail loudly and *before* attempting any request
+    # if FRED_API_KEY isn't set, not raise an opaque error from requests.
+    monkeypatch.delenv("FRED_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="FRED_API_KEY"):
+        main("2021-01-01", "2026-01-01")

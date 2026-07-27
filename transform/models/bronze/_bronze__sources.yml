@@ -201,12 +201,26 @@ sources:
           - name: value
             tests: [not_null]
 
-      # fred_rates is deliberately NOT declared here yet. ingestion/fred_ingest.py
-      # requires a real FRED_API_KEY (no unauthenticated fallback -- see
-      # docs/source_contracts/fred.md), which isn't available in this
-      # environment. Adding a dbt source with column tests before the table
-      # physically exists in the live bronze schema would break `dbt build`
-      # in CI (source tests query the real table). Run fred_ingest.py once
-      # against a real key to land the table, THEN add the `fred_rates`
-      # source block here (same shape as `cpi_monthly` above) in a follow-up
-      # change.
+      - name: fred_rates
+        description: >
+          Federal Reserve (FRED) monthly rate series -- effective federal
+          funds rate and bank prime loan rate (see docs/source_contracts/fred.md).
+          Grain: (series_id, observation_date).
+        # Monthly release -- warn only past 45 days, never error (matches
+        # cpi_monthly's policy: macro enrichment must not block operational
+        # reconciliation), per docs/non_functional_targets.md.
+        freshness:
+          warn_after: {count: 45, period: day}
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [series_id, observation_date]
+        columns:
+          - name: series_id
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['FEDFUNDS', 'MPRIME']
+          - name: observation_date
+            tests: [not_null]
+          - name: value
+            tests: [not_null]

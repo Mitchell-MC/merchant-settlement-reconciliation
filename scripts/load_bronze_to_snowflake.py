@@ -37,8 +37,7 @@ from common.logging_setup import get_logger  # noqa: E402
 
 logger = get_logger("load_bronze_to_snowflake")
 
-# Matches transform/models/bronze/_bronze__sources.yml -- fred_rates is
-# deliberately excluded there too (no FRED_API_KEY in this environment).
+# Matches transform/models/bronze/_bronze__sources.yml.
 BRONZE_TABLES = [
     "merchants",
     "transactions",
@@ -49,6 +48,7 @@ BRONZE_TABLES = [
     "frps_payment_volumes",
     "cbp_establishments",
     "cpi_monthly",
+    "fred_rates",
 ]
 
 
