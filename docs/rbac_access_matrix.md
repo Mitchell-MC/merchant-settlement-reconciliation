@@ -1,6 +1,6 @@
 # RBAC Role Model and Access Matrix
 
-This is implemented, not aspirational: 4 Unity Catalog account-level groups exist in the live workspace (`dbc-08add949-9c19.cloud.databricks.com`) with the grants below applied via `GRANT` statements, verified with `SHOW GRANTS`. Full enterprise IAM federation (SSO/SCIM provisioning real distinct humans into these groups) is out of scope per [charter/PROJECT_CHARTER.md](../charter/PROJECT_CHARTER.md) — the groups and grants exist and are correct; assigning real people to them is a deployment-time exercise, not a data-platform one.
+This is implemented, not aspirational. **Snowflake is the live platform** (see [snowflake_migration_plan.md](snowflake_migration_plan.md); Databricks was retired 2026-07-25) — jump to [Snowflake retarget](#snowflake-retarget-same-matrix-same-verification-discipline) below for the currently-verified grants. The role model and access matrix immediately below apply unchanged across both platforms; the `GRANT` statements were originally verified against Unity Catalog and are kept as the platform-agnostic reference design. Full enterprise IAM federation (SSO/SCIM provisioning real distinct humans into these groups) is out of scope per [charter/PROJECT_CHARTER.md](../charter/PROJECT_CHARTER.md) — the groups and grants exist and are correct; assigning real people to them is a deployment-time exercise, not a data-platform one.
 
 ## Role model
 
@@ -21,11 +21,13 @@ Risk & Compliance (Phase 1 stakeholder map) isn't a distinct group here — in t
 | `silver.*` (conformed) | Medium-high — still batch/posting-level detail | ALL PRIVILEGES | SELECT | none | none |
 | `gold.fct_daily_cash_position` | Low — aggregated, no merchant identity | ALL PRIVILEGES | SELECT | SELECT | SELECT |
 | `gold.fct_funding_cost_summary` | Low — aggregated by segment | ALL PRIVILEGES | SELECT | SELECT | SELECT |
-| `gold.fct_reconciliation_breaks` / `fct_exception_queue` / `fct_merchant_exception_trends` | Medium — merchant name + break amount | ALL PRIVILEGES | SELECT | none | none |
+| `gold.fct_reconciliation_breaks` / `fct_exception_queue` / `fct_merchant_exception_trends` / `fct_duplicate_posting_exceptions` | Medium — merchant name + break/duplicate amount | ALL PRIVILEGES | SELECT | none | none |
 | `gold.vw_exception_queue_masked` | Low — pseudonymized | ALL PRIVILEGES | SELECT (redundant with above) | none | SELECT |
 | `ops.*` (telemetry) | Internal — operational metadata, not business data | ALL PRIVILEGES | none | none | none |
 
-## Verified grants (live, as of this build)
+## Verified grants (Databricks era — historical reference)
+
+> **Historical.** Captured when Unity Catalog was the live platform. Kept as the reference design the Snowflake grants (below) reproduce; the Databricks stack itself was retired 2026-07-25 and `dbc-08add949-9c19.cloud.databricks.com` no longer exists.
 
 ```
 GRANT USE CATALOG ON CATALOG merchant_recon_project TO `recon_engineering`;

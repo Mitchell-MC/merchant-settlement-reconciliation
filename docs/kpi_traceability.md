@@ -1,6 +1,6 @@
 # KPI Traceability — Audit Confidence
 
-This is proof, not a promise: control totals for `expected_settlement_amount` were pulled live from the running Databricks workspace across all three medallion layers.
+This is proof, not a promise. **Snowflake is the live platform** (Databricks was retired 2026-07-25 — see [snowflake_migration_plan.md](snowflake_migration_plan.md)); the control totals below were captured while Databricks was still primary and are kept as the original proof this traceability pattern works, not as current numbers. The dbt test that continuously re-verifies this comparison (`transform/tests/assert_bronze_silver_settlement_control_total.sql`) now runs against Snowflake on every `dbt build` — see "Reproducing this yourself" below for the current command.
 
 ```sql
 SELECT
@@ -36,9 +36,6 @@ Exact match across all three layers — no silent row loss, no double-counting, 
 
 ## Reproducing this yourself
 
-```bash
-databricks auth login --host https://dbc-08add949-9c19.cloud.databricks.com --profile meridian-dev
-databricks api post /api/2.0/sql/statements --json '{"warehouse_id":"59901b31d31db40a","statement":"<the query above>","wait_timeout":"30s"}' --profile meridian-dev
-```
+On Snowflake, the equivalent control-total query uses the objects under `MERCHANT_RECON_PROJECT_DEV` (see [rbac_access_matrix.md](rbac_access_matrix.md#snowflake-retarget-same-matrix-same-verification-discipline) for the account/role names) with the same three-layer shape as the query above, uppercased per Snowflake's default identifier casing.
 
-Or from `transform/`: `dbt test --select assert_bronze_silver_settlement_control_total`.
+From `transform/`: `dbt test --select assert_bronze_silver_settlement_control_total` — this is the authoritative, continuously-run check; it runs on every `dbt build` (see [ci.yml](../.github/workflows/ci.yml) / [cd.yml](../.github/workflows/cd.yml)) rather than needing to be reproduced by hand.

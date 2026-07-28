@@ -257,6 +257,26 @@ models:
       - name: benchmark_collection_year
         tests: [not_null]
 
+  - name: fct_duplicate_posting_exceptions
+    description: >
+      Triage-ready surface for bank postings that duplicate an already-
+      claimed posting (same merchant/date/amount) -- real cash posted twice,
+      not a settlement-batch-side break. See
+      transform/models/silver/fct_duplicate_postings.sql for detection
+      logic and docs/kpi_traceability.md for why this is a separate mart
+      from fct_exception_queue.
+    columns:
+      - name: unclaimed_posting_id
+        tests: [unique, not_null]
+      - name: severity
+        tests:
+          - accepted_values:
+              values: ['critical', 'high']
+      - name: triage_status
+        tests:
+          - accepted_values:
+              values: ['new']
+
   - name: vw_exception_queue_masked
     description: >
       Report-safe, pseudonymized view of fct_exception_queue for the

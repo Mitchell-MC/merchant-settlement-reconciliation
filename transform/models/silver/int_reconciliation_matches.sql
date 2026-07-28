@@ -202,15 +202,48 @@ best_effort_for_breaks as (
     where c.settlement_batch_id not in (select settlement_batch_id from split_matches)
 ),
 
+-- A posting that lands after window_end_date is invisible to `candidates`
+-- (its join is bounded by the window), so a same-merchant, in-tolerance
+-- posting found here is a genuine late payout -- 'delayed' -- not an
+-- unresolved break. Search is unbounded in date on purpose: a posting
+-- arbitrarily late is still meaningfully different from one that never
+-- arrives at all.
+late_candidates as (
+    select
+        ub.settlement_batch_id,
+        p.posting_id,
+        p.posting_date,
+        p.amount as posting_amount,
+        abs(p.amount - ub.expected_settlement_amount) as amount_diff,
+        row_number() over (
+            partition by ub.settlement_batch_id order by p.posting_date asc, p.posting_id asc
+        ) as rn
+    from unmatched_batches ub
+    join postings p
+        on p.merchant_id = ub.merchant_id
+       and p.posting_date > ub.window_end_date
+       and abs(p.amount - ub.expected_settlement_amount) <= ub.amount_tolerance
+    where ub.settlement_batch_id not in (select settlement_batch_id from split_matches)
+),
+
 breaks as (
     select
         ub.settlement_batch_id,
         ub.merchant_id,
         ub.expected_settlement_amount,
-        be.closest_posting_amount as matched_amount,
-        case when be.closest_posting_id is not null then array_construct(be.closest_posting_id) else array_construct() end as matched_posting_ids,
-        case when be.closest_posting_id is not null then 'unmatched_closest_candidate' else 'missing_posting' end as match_method
+        coalesce(lc.posting_amount, be.closest_posting_amount) as matched_amount,
+        case
+            when lc.posting_id is not null then array_construct(lc.posting_id)
+            when be.closest_posting_id is not null then array_construct(be.closest_posting_id)
+            else array_construct()
+        end as matched_posting_ids,
+        case
+            when lc.posting_id is not null then 'delayed'
+            when be.closest_posting_id is not null then 'unmatched_closest_candidate'
+            else 'missing_posting'
+        end as match_method
     from unmatched_batches ub
+    left join late_candidates lc on lc.settlement_batch_id = ub.settlement_batch_id and lc.rn = 1
     left join best_effort_for_breaks be on be.settlement_batch_id = ub.settlement_batch_id and be.rn = 1
     where ub.settlement_batch_id not in (select settlement_batch_id from split_matches)
 )

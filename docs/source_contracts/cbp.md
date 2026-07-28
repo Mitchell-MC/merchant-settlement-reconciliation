@@ -3,6 +3,8 @@
 ## Purpose
 Drives realistic merchant segmentation for the synthetic data generator: geography mix, industry (NAICS) mix, and employer-size-class distribution should reflect real US business population patterns, not a uniform/arbitrary distribution.
 
+CBP was chosen over SEC public-company filing data for this purpose: SEC's Financial Statement Data Sets cover only publicly-traded companies, a poor population match for "SMB payment facilitator merchants" (the platform's actual entities are small/mid-market businesses, the overwhelming majority of which are privately held). CBP is a direct firmographic census — establishment counts by industry, geography, and employer-size class — of the population this project is actually trying to represent.
+
 ## Access
 - **Most recent vintage:** 2023 (released 2025-06-26; 2024 vintage due summer 2026).
 - **Landing page:** https://www.census.gov/data/datasets/2023/econ/cbp/2023-cbp.html

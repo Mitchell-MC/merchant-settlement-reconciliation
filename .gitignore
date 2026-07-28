@@ -14,6 +14,7 @@ htmlcov/
 transform/target/
 transform/dbt_packages/
 transform/logs/
+logs/
 transform/.user.yml
 **/.user.yml
 transform/profiles.yml

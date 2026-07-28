@@ -94,6 +94,21 @@ models:
       - name: posting_id
         tests: [unique, not_null]
 
+  - name: fct_duplicate_postings
+    description: >
+      Bank postings never claimed by the reconciliation engine that share
+      merchant/date/amount with a posting that WAS claimed -- a duplicate
+      payout, not a settlement-batch-side break. See
+      transform/tests/assert_duplicate_postings_are_unclaimed.sql for the
+      integrity check that this model never overlaps a true match.
+    columns:
+      - name: unclaimed_posting_id
+        tests: [unique, not_null]
+      - name: duplicated_posting_id
+        tests: [not_null]
+      - name: duplicated_against_batch_id
+        tests: [not_null]
+
   - name: fct_reserve_event
     description: Conformed reserve hold/release ledger.
     columns:

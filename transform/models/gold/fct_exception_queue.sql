@@ -64,6 +64,7 @@ select
     br.root_cause_hint,
     case
         when br.root_cause_hint = 'missing_posting' then 'Treasury Ops'
+        when br.root_cause_hint = 'delayed' then 'Treasury Ops'
         when br.root_cause_hint = 'unmatched_closest_candidate' then 'Controller / Accounting'
         else 'Data/Analytics Engineering'
     end as suggested_owner_role,

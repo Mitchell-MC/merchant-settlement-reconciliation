@@ -6,7 +6,7 @@ This is a **batch reconciliation** platform, a deliberate architectural choice r
 
 ## Why this exists
 
-Anyone who processes third-party payouts — payment facilitators, marketplaces, gig platforms — has to answer one question every day: *did the money that was supposed to move actually move, and if not, why not, and how much is at risk?* This project builds that capability end-to-end: business framing → data contracts → synthetic operational data → medallion lakehouse → reconciliation engine → data-quality gates → governance → IaC → CI/CD → executive BI — plus the operational layer that makes it trustworthy in production: observability, silent-failure detection, and incident response.
+Anyone who processes third-party payouts and payment facilitators, marketplaces, gig platforms and has to answer one question every day: *did the money that was supposed to move actually move, and if not, why not, and how much is at risk?* This project builds that capability end-to-end: business framing → data contracts → synthetic operational data → medallion lakehouse → reconciliation engine → data-quality gates → governance → IaC → CI/CD → executive BI — plus the operational layer that makes it trustworthy in production: observability, silent-failure detection, and incident response.
 
 See [charter/PROJECT_CHARTER.md](charter/PROJECT_CHARTER.md) for the full business framing, stakeholder map, and interview narratives.
 
@@ -19,12 +19,15 @@ FRPS / CBP / CPI / FRED (public macro reference data)     Synthetic operational 
                     Bronze  (raw landed, immutable, lineage metadata)
                               |   ← boundary data-contract validation alerts on type/shape drift
                     Silver  (conformed entities: merchant, settlement batch,
-                              payment channel, bank movement, date)
+                              payment channel, bank movement, date; dim_merchant_history
+                              for point-in-time joins, fed by a dbt snapshot)
                               |
                     Reconciliation engine  (date-window + amount-tolerance matching)
                               |
-                    Gold    (cash position, breaks, aging, root cause, funding cost —
-                              star schema)
+                    Gold    (cash position, breaks + aging + risk tier as-of break date,
+                              exception queue with persisted analyst triage state,
+                              merchant exception trends, settlement SLA, payment mix,
+                              funding cost — star schema)
                               |
                     Executive dashboard (live) + Power BI (documented)
 
@@ -32,6 +35,8 @@ FRPS / CBP / CPI / FRED (public macro reference data)     Synthetic operational 
 ```
 
 The dbt models run on **Snowflake**. See [docs/architecture.md](docs/architecture.md) for the full data-flow diagram; [docs/snowflake_migration_plan.md](docs/snowflake_migration_plan.md) records the retarget from the platform's original Databricks implementation, which was retired on 2026-07-25. The executive dashboard ([source](bi/executive_dashboard.html)) is built from real Gold-layer data and published as a private Claude artifact — share it from claude.ai/code/artifacts before sending the link to anyone else.
+
+`dim_merchant` is current-state-only by default, so a merchant re-tiered after a break occurred would otherwise have that break silently reclassified under the new tier on every rebuild. A dbt snapshot ([transform/snapshots/dim_merchant_snapshot.sql](transform/snapshots/dim_merchant_snapshot.sql)) captures SCD2 history on the mutable contract-term columns, and `fct_reconciliation_breaks` resolves `risk_tier` as-of `break_first_identified_date` rather than off current-state `dim_merchant` — so "what was true as of date X" stays answerable. Separately, `fct_exception_queue` is an incremental merge (not a full rebuild) keyed on `settlement_batch_id`, scoped so analyst-set `triage_status`/owner overrides survive across runs instead of being wiped on every `dbt build`; a break that resolves (no longer present in `fct_reconciliation_breaks`) is closed out via post-hook rather than silently vanishing from the queue.
 
 ## Production-readiness & operations
 
@@ -48,11 +53,11 @@ The controls that separate a working pipeline from a trustworthy one:
 | Path | Contents |
 |---|---|
 | [charter/](charter/) | Business framing, stakeholder map, scope, interview narratives |
-| [docs/](docs/) | KPI contract, non-functional targets & SLAs, source contracts, governance/RBAC, architecture, **incident & release runbooks**, **Snowflake migration plan** |
+| [docs/](docs/) | [kpi_contract.md](docs/kpi_contract.md) & [kpi_traceability.md](docs/kpi_traceability.md), [non_functional_targets.md](docs/non_functional_targets.md), [source_contracts/](docs/source_contracts/) (FRPS/CBP/CPI/FRED), [data_governance.md](docs/data_governance.md) & [rbac_access_matrix.md](docs/rbac_access_matrix.md), [architecture.md](docs/architecture.md), **incident & release runbooks**, **Snowflake migration plan** |
 | [data_generation/](data_generation/) | Deterministic synthetic operational data generator |
 | [ingestion/](ingestion/) | FRPS / CBP / CPI / FRED macro reference data ingestion scripts |
 | [common/](common/) | Shared Bronze lineage/landing helpers, structured logging, and boundary data-contract validation |
-| [transform/](transform/) | dbt project — Bronze/Silver/Gold models, reconciliation logic, tests, and the `ops` observability models |
+| [transform/](transform/) | dbt project — Bronze/Silver/Gold models, reconciliation logic, tests, `snapshots/` (SCD2 history for `dim_merchant`), and the `ops` observability models |
 | [infra_snowflake/](infra_snowflake/) | Terraform (Snowflake) — database, warehouses, roles/grants, service user, stage |
 | [.github/workflows/](.github/workflows/) | CI, CD, and the Snowflake daily + heartbeat workflows; `.github/ci*/` hold the CI-only dbt profiles |
 | [bi/](bi/) | Executive dashboard (live, real data) and `MeridianPayExecutive.pbip` Power BI project (TMDL semantic model + report shell — see [bi/power_bi_connection_guide.md](bi/power_bi_connection_guide.md) for status) |
@@ -66,4 +71,13 @@ All 9 build phases are complete, and the operational layer above (CI green, CD l
 ## Scope boundaries
 
 **In:** daily batch reconciliation, synthetic operational data derived from public sources, production-readiness controls (CI/CD, observability, incident response).
-**Out:** real confidential processor/bank feeds, full enterprise IAM federation, remote Terraform state / automated infra apply in CI, true real-time stream processing (see the companion streaming project for that).
+**Out:** real confidential processor/bank feeds, full enterprise IAM federation, remote Terraform state / automated infra apply in CI, true real-time stream processing.
+
+This project is self-contained: everything above runs standalone against Snowflake with no dependency on another repository. The items below are deliberately out of scope for a *daily batch reconciliation* platform, but here's how each could be brought in if requirements changed:
+
+- **Real confidential processor/bank feeds** — swap [ingestion/](ingestion/) and the synthetic generator in [data_generation/](data_generation/) for authenticated connectors to the real processor/bank APIs, behind the same Bronze data-contract validation ([common/validation.py](common/validation.py)) that already guards against shape/type drift. The Silver/Gold layers and reconciliation engine wouldn't need to change — they're already decoupled from where Bronze data comes from.
+- **Full enterprise IAM federation** — extend the RBAC model documented in [docs/data_governance.md](docs/data_governance.md) from Snowflake's native roles/grants ([infra_snowflake/](infra_snowflake/)) to SSO/SCIM via an identity provider (Okta, Azure AD); Snowflake supports SAML/OAuth federation natively, so this is additive to the existing role hierarchy, not a redesign.
+- **Remote Terraform state / automated infra apply in CI** — move state from local to a remote backend (Snowflake-hosted stage, S3, or Terraform Cloud) with locking, then add an `apply` job to [cd.yml](.github/workflows/cd.yml) gated the same way the `dbt build` smoke test already is (`CD_DEPLOY_ENABLED` + required-reviewer approval). Deliberately deferred here to avoid a shared-state blast radius during active development.
+- **True real-time stream processing** — settlement reconciles against a bank statement that posts once a day, so streaming wouldn't change *when* the authoritative comparison can happen. Where it would add value is upstream: emitting bank-movement or settlement-batch events onto a stream (Kafka/Kinesis/Snowpipe Streaming) as they arrive, landing them incrementally into Bronze so the daily reconciliation run starts from data that's already current instead of batch-loading at cutoff. That's an ingestion-layer change — Silver, Gold, and the reconciliation engine stay the same, since "did the money move" is still only answerable once the bank statement posts.
+- **Business-event alerting on high-value exceptions** — today's `ALERT_WEBHOOK_URL` hook ([.github/workflows/snowflake_daily.yml](.github/workflows/snowflake_daily.yml), [snowflake_heartbeat.yml](.github/workflows/snowflake_heartbeat.yml)) fires on *pipeline* failure (a bad build, a silent pipeline), not on a *business* event like a single break crossing a dollar threshold. That's a natural extension of `fct_exception_queue`'s existing `severity = 'critical'` classification: a post-`dbt build` step that queries newly-inserted critical rows and posts to the same (or a second, ops-vs-Treasury-scoped) webhook — additive to the alerting that already exists, not a new subsystem.
+- **Ticketing-workflow integration for merchant operations** — `fct_exception_queue`'s `triage_status`/`triage_owner` columns are already designed to be written to from outside dbt (the incremental merge's `merge_update_columns` deliberately excludes them so an external update survives every rebuild — see the model header). Connecting a ticketing system (Jira, ServiceNow) would mean that system reading `new` rows and writing back `triage_status`/`triage_owner`/`triage_notes` via the same UPDATE path an analyst uses today — the persistence mechanism this would need already exists and is exercised.
