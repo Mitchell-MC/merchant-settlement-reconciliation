@@ -39,6 +39,14 @@ def _observed(d: date) -> date:
 
 @lru_cache(maxsize=None)
 def federal_holidays(year: int) -> frozenset:
+    """Compute the set of US Federal Reserve observed holidays for a year.
+
+    Args:
+        year (int): Calendar year to compute holidays for.
+
+    Returns:
+        frozenset: Observed holiday dates for the given year.
+    """
     fixed = [
         date(year, 1, 1),    # New Year's Day
         date(year, 6, 19),   # Juneteenth
@@ -58,6 +66,14 @@ def federal_holidays(year: int) -> frozenset:
 
 
 def is_business_day(d: date) -> bool:
+    """Check whether a date is a weekday and not a federal holiday.
+
+    Args:
+        d (date): Date to check.
+
+    Returns:
+        bool: True if d is Mon-Fri and not an observed federal holiday.
+    """
     return d.weekday() < 5 and d not in federal_holidays(d.year)
 
 
@@ -86,6 +102,15 @@ def business_days_between(start: date, end: date) -> int:
 
 
 def date_range(start: date, end: date):
+    """Yield each calendar date from start to end, inclusive.
+
+    Args:
+        start (date): First date to yield.
+        end (date): Last date to yield.
+
+    Yields:
+        date: Each date in [start, end].
+    """
     cursor = start
     while cursor <= end:
         yield cursor

@@ -32,6 +32,22 @@ CARD_PRESENT_SHARE = {
 
 
 def generate_transactions(merchants: pd.DataFrame, config: GenerationConfig) -> pd.DataFrame:
+    """Generate raw transaction-level rows for every merchant and day.
+
+    Draws a Poisson transaction count per (merchant, day) from day-of-week
+    and industry seasonality multipliers, then expands directly to
+    individual transaction rows in one vectorized pass.
+
+    Args:
+        merchants (pd.DataFrame): Merchant dimension table; supplies
+            industry, avg_ticket_usd, and daily_txn_volume_multiplier.
+        config (GenerationConfig): Generation config; controls the seed,
+            date range, refund rate, and average daily transaction volume.
+
+    Returns:
+        pd.DataFrame: One row per transaction, sorted by transaction_date
+            then merchant_id.
+    """
     rng = np.random.default_rng(config.seed + 1)
     dates = list(date_range(config.start_date, config.end_date))
     n_days = len(dates)

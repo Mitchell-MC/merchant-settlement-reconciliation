@@ -53,6 +53,16 @@ BRONZE_TABLES = [
 
 
 def _load_snowflake_target(profiles_path: Path, target_name: str) -> dict:
+    """Read one named output target from the dbt profiles.yml file.
+
+    Args:
+        profiles_path (Path): Path to the dbt profiles.yml.
+        target_name (str): Output name under merchant_reconciliation.outputs,
+            e.g. "snowflake" or "ci_snowflake".
+
+    Returns:
+        dict: The target's connection settings as declared in the profile.
+    """
     with open(profiles_path, "r", encoding="utf-8") as f:
         profiles = yaml.safe_load(f)
     return profiles["merchant_reconciliation"]["outputs"][target_name]
@@ -75,6 +85,16 @@ def _load_private_key_pem(target: dict) -> bytes:
 
 
 def _connect(target: dict) -> snowflake.connector.SnowflakeConnection:
+    """Open a Snowflake connection using key-pair auth for a profile target.
+
+    Args:
+        target (dict): Connection settings from _load_snowflake_target
+            (account, user, role, warehouse, database, private_key_path).
+
+    Returns:
+        snowflake.connector.SnowflakeConnection: Open connection, schema
+            fixed to BRONZE.
+    """
     private_key = serialization.load_pem_private_key(_load_private_key_pem(target), password=None)
     private_key_bytes = private_key.private_bytes(
         encoding=serialization.Encoding.DER,
@@ -105,6 +125,16 @@ def _connect(target: dict) -> snowflake.connector.SnowflakeConnection:
 
 
 def load_table(cur, table: str) -> int:
+    """PUT a table's local parquet file to stage and COPY INTO its Bronze table.
+
+    Args:
+        cur: Open Snowflake cursor.
+        table (str): Table name; must be a member of BRONZE_TABLES. Skipped
+            (with a warning, returning 0) if no local parquet file exists.
+
+    Returns:
+        int: Row count of the table after loading, or 0 if skipped.
+    """
     local_path = BRONZE_DIR / table / f"{table}.parquet"
     if not local_path.exists():
         logger.warning("skip %s: no local file at %s", table, local_path)
@@ -147,6 +177,11 @@ def load_table(cur, table: str) -> int:
 
 
 def main() -> None:
+    """Parse CLI args and load each requested table's parquet file to Snowflake.
+
+    Raises:
+        SystemExit: If --tables names a table not in BRONZE_TABLES.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tables", help="Comma-separated subset of tables to load (default: all)")
     parser.add_argument(
@@ -166,6 +201,12 @@ def main() -> None:
     args = parser.parse_args()
 
     tables = args.tables.split(",") if args.tables else BRONZE_TABLES
+    unknown = sorted(set(tables) - set(BRONZE_TABLES))
+    if unknown:
+        parser.error(
+            f"unknown table(s) in --tables: {', '.join(unknown)} "
+            f"(known tables: {', '.join(BRONZE_TABLES)})"
+        )
     target = _load_snowflake_target(Path(args.profiles_path), args.profiles_target)
 
     conn = _connect(target)

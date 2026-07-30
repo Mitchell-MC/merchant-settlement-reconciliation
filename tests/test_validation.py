@@ -22,6 +22,12 @@ SCHEMA = {"value": "numeric", "series_id": "string", "year": "int"}
 
 
 def _clean_frame() -> pd.DataFrame:
+    """Build a frame that conforms to SCHEMA, for the passing-case tests.
+
+    Returns:
+        pd.DataFrame: 2-row frame with series_id (string), year (int), and
+            value (numeric) columns.
+    """
     return pd.DataFrame(
         {
             "series_id": ["CUUR0000SA0", "CUUR0000SA0"],

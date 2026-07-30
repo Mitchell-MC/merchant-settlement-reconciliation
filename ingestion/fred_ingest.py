@@ -42,6 +42,20 @@ OUTPUT_TABLE = "fred_rates"
 
 
 def _fetch(series_id: str, start_date: str, end_date: str, api_key: str) -> list[dict]:
+    """Call the FRED observations endpoint for a single series.
+
+    Args:
+        series_id (str): FRED series identifier, e.g. "FEDFUNDS".
+        start_date (str): Observation window start (YYYY-MM-DD), inclusive.
+        end_date (str): Observation window end (YYYY-MM-DD), inclusive.
+        api_key (str): FRED API key.
+
+    Returns:
+        list[dict]: Raw observation records as returned by FRED.
+
+    Raises:
+        requests.HTTPError: If the HTTP response status indicates failure.
+    """
     params = {
         "series_id": series_id,
         "api_key": api_key,
@@ -56,6 +70,18 @@ def _fetch(series_id: str, start_date: str, end_date: str, api_key: str) -> list
 
 
 def _parse_observations(series_id: str, series_type: str, observations: list[dict]) -> pd.DataFrame:
+    """Normalize raw FRED observations into landed-table row shape.
+
+    Args:
+        series_id (str): FRED series identifier these observations belong to.
+        series_type (str): Human-readable series label, e.g.
+            "effective_federal_funds_rate".
+        observations (list[dict]): Raw observation records from _fetch.
+
+    Returns:
+        pd.DataFrame: One row per observation with a released value.
+            Suppressed/not-yet-reported observations (".") are skipped.
+    """
     rows = []
     for obs in observations:
         # FRED uses "." for a suppressed/not-yet-reported observation -- per
@@ -74,6 +100,15 @@ def _parse_observations(series_id: str, series_type: str, observations: list[dic
 
 
 def main(start_date: str, end_date: str) -> None:
+    """Fetch, concatenate, and land the configured FRED rate series to Bronze.
+
+    Args:
+        start_date (str): Observation window start (YYYY-MM-DD), inclusive.
+        end_date (str): Observation window end (YYYY-MM-DD), inclusive.
+
+    Raises:
+        RuntimeError: If FRED_API_KEY is not set in the environment.
+    """
     api_key = os.environ.get("FRED_API_KEY")
     if not api_key:
         raise RuntimeError(

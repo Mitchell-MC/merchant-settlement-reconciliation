@@ -22,6 +22,17 @@ DAILY_ADJUSTMENT_PROBABILITY = 0.03
 
 
 def _aggregate_daily_volume(transactions: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate transaction-level rows into per-merchant daily volume totals.
+
+    Args:
+        transactions (pd.DataFrame): Transaction-level rows with
+            transaction_type, merchant_id, transaction_date, and amount.
+
+    Returns:
+        pd.DataFrame: One row per (merchant_id, transaction_date) with
+            gross_sales_volume, same_day_refunds, and transaction_count.
+            Days with zero activity are dropped.
+    """
     sales = transactions[transactions["transaction_type"] == "sale"]
     refunds = transactions[transactions["transaction_type"] == "refund"]
 
@@ -46,6 +57,25 @@ def _aggregate_daily_volume(transactions: pd.DataFrame) -> pd.DataFrame:
 def generate_settlement_batches(
     transactions: pd.DataFrame, merchants: pd.DataFrame, config: GenerationConfig
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Build daily settlement batches, reserve events, and returns adjustments.
+
+    Walks each merchant's daily aggregated volume in chronological order,
+    maintaining a rolling reserve hold/release ledger (config.reserve_hold_
+    window_days) and probabilistically injecting lagged return/chargeback
+    adjustments, so that expected settlement amounts diverge from a naive
+    same-day sum in the same way real reconciliation breaks do.
+
+    Args:
+        transactions (pd.DataFrame): Transaction-level rows to aggregate.
+        merchants (pd.DataFrame): Merchant dimension table; supplies
+            reserve/fee/settlement-speed parameters per merchant.
+        config (GenerationConfig): Generation config; controls the seed,
+            reserve hold window, fee rates, and return-lag range.
+
+    Returns:
+        tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: (settlement
+            batches, reserve events, returns adjustments) frames.
+    """
     rng = np.random.default_rng(config.seed + 2)
     agg = _aggregate_daily_volume(transactions)
 

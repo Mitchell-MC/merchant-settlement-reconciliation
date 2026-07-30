@@ -4,6 +4,11 @@ from common.lineage import add_lineage, write_landed_parquet
 
 
 def _sample_df() -> pd.DataFrame:
+    """Build a small fixed frame for lineage/hashing assertions.
+
+    Returns:
+        pd.DataFrame: 3-row frame with columns "a" (int) and "b" (str).
+    """
     return pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
 
 

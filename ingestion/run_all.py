@@ -20,6 +20,11 @@ logger = get_logger("ingestion.run_all")
 
 
 def main() -> None:
+    """Run FRPS, CBP, CPI, and FRED ingestion in sequence.
+
+    FRED is skipped (with a warning, not a failure) if FRED_API_KEY isn't
+    set, since it has no unauthenticated fallback unlike the other sources.
+    """
     logger.info("=== FRPS ===")
     frps_ingest.main()
     logger.info("=== CBP ===")

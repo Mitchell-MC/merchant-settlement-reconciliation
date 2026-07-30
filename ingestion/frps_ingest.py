@@ -54,6 +54,18 @@ DATA_START_ROW = 6
 
 
 def _download(url: str, dest: Path) -> Path:
+    """Download a file to dest, creating parent directories as needed.
+
+    Args:
+        url (str): URL to fetch.
+        dest (Path): Local path to write the response body to.
+
+    Returns:
+        Path: dest, for chaining.
+
+    Raises:
+        requests.HTTPError: If the response status indicates failure.
+    """
     dest.parent.mkdir(parents=True, exist_ok=True)
     resp = requests.get(url, timeout=60)
     resp.raise_for_status()
@@ -62,6 +74,19 @@ def _download(url: str, dest: Path) -> Path:
 
 
 def _parse_workbook(path: Path) -> pd.DataFrame:
+    """Reshape the FRPS "Table 1" workbook from wide/indented to long grain.
+
+    Reconstructs a category_path breadcrumb from each row's Excel cell
+    indentation level, since the payment-type hierarchy is encoded visually
+    rather than via an explicit parent column.
+
+    Args:
+        path (Path): Path to the downloaded FRPS workbook.
+
+    Returns:
+        pd.DataFrame: One row per (row_number, collection_year) with counts,
+            values, and average transaction amounts.
+    """
     import openpyxl
 
     wb = openpyxl.load_workbook(path, data_only=True)
@@ -115,6 +140,11 @@ def _parse_workbook(path: Path) -> pd.DataFrame:
 
 
 def main(url: str = DEFAULT_URL) -> None:
+    """Download, reshape, and land the FRPS payment-volume workbook to Bronze.
+
+    Args:
+        url (str): FRPS top-line workbook URL to download.
+    """
     run_id = str(uuid.uuid4())
     tmp_path = Path(__file__).resolve().parent / "_downloads" / "frps_workbook.xlsx"
 

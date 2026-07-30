@@ -17,12 +17,36 @@ from config import GenerationConfig
 
 
 def _bank_reference(rng: np.random.Generator) -> str:
+    """Generate a random 12-character alphanumeric bank reference code.
+
+    Args:
+        rng (np.random.Generator): Seeded generator to draw characters from.
+
+    Returns:
+        str: 12-character reference string.
+    """
     return "".join(rng.choice(list("ABCDEFGHJKLMNPQRSTUVWXYZ0123456789"), size=12))
 
 
 def generate_bank_postings(
     settlement_batches: pd.DataFrame, config: GenerationConfig
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Generate bank postings for settlement batches, injecting break scenarios.
+
+    Each batch is assigned exactly one scenario (clean match or a break
+    pattern from config.breaks) and the corresponding posting rows are
+    synthesized to match. The scenario label is only ever written to the
+    ground-truth table, never into the bank posting rows themselves.
+
+    Args:
+        settlement_batches (pd.DataFrame): Settlement batches to post against.
+        config (GenerationConfig): Generation config; controls the seed and
+            break-scenario probabilities.
+
+    Returns:
+        tuple[pd.DataFrame, pd.DataFrame]: (bank postings, ground truth)
+            frames.
+    """
     rng = np.random.default_rng(config.seed + 3)
     b = config.breaks
     scenario_names = [

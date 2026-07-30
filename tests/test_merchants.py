@@ -12,6 +12,15 @@ EXPECTED_COLUMNS = {
 
 
 def _small_config(seed: int = 42, merchant_count: int = 50) -> GenerationConfig:
+    """Build a GenerationConfig sized for fast merchant-generation tests.
+
+    Args:
+        seed (int): RNG seed to use.
+        merchant_count (int): Number of merchants to generate.
+
+    Returns:
+        GenerationConfig: Default config with seed and merchant_count overridden.
+    """
     return dataclasses.replace(GenerationConfig(), seed=seed, merchant_count=merchant_count)
 
 

@@ -58,6 +58,16 @@ _NAME_SUFFIXES = {
 
 
 def _weighted_choice(rng: np.random.Generator, weights: dict, size: int) -> np.ndarray:
+    """Draw a weighted-random sample of dict keys.
+
+    Args:
+        rng (np.random.Generator): Seeded generator to sample from.
+        weights (dict): Mapping of key -> relative weight; need not sum to 1.
+        size (int): Number of samples to draw, with replacement.
+
+    Returns:
+        np.ndarray: Array of size sampled keys.
+    """
     keys = list(weights.keys())
     probs = np.array(list(weights.values()), dtype=float)
     probs = probs / probs.sum()
@@ -65,6 +75,16 @@ def _weighted_choice(rng: np.random.Generator, weights: dict, size: int) -> np.n
 
 
 def generate_merchants(config: GenerationConfig) -> pd.DataFrame:
+    """Generate the synthetic merchant dimension table.
+
+    Args:
+        config (GenerationConfig): Generation config; controls the seed,
+            merchant count, and segment weight distributions.
+
+    Returns:
+        pd.DataFrame: One row per merchant with industry, region, risk tier,
+            fee/reserve parameters, and volume characteristics.
+    """
     rng = np.random.default_rng(config.seed)
     n = config.merchant_count
 

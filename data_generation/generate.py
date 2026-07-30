@@ -32,6 +32,17 @@ logger = get_logger("data_generation.generate")
 
 
 def main(config: GenerationConfig | None = None) -> None:
+    """Generate the full synthetic dataset and land it as Bronze parquet.
+
+    Runs merchants -> transactions -> settlement -> bank postings in order,
+    validates each resulting frame's Bronze contract, stamps lineage, and
+    writes both the landed parquet tables and the never-ingested ground
+    truth (break scenarios + run manifest) used for reconciliation testing.
+
+    Args:
+        config (GenerationConfig | None): Generation config; defaults to
+            GenerationConfig() when omitted.
+    """
     config = config or GenerationConfig()
     run_id = str(uuid.uuid4())
     started = datetime.now(timezone.utc)

@@ -42,6 +42,19 @@ OUTPUT_TABLE = "cpi_monthly"
 
 
 def _fetch(start_year: int, end_year: int) -> dict:
+    """Call the BLS Public Data API for the configured CPI series.
+
+    Args:
+        start_year (int): First year of the requested window, inclusive.
+        end_year (int): Last year of the requested window, inclusive.
+
+    Returns:
+        dict: Parsed JSON response body.
+
+    Raises:
+        requests.HTTPError: If the HTTP response status indicates failure.
+        RuntimeError: If the BLS API reports a non-success status.
+    """
     payload = {
         "seriesid": list(SERIES_IDS.keys()),
         "startyear": str(start_year),
@@ -60,6 +73,15 @@ def _fetch(start_year: int, end_year: int) -> dict:
 
 
 def _parse_response(body: dict) -> pd.DataFrame:
+    """Flatten a BLS API response body into one row per series/period value.
+
+    Args:
+        body (dict): Parsed JSON response from the BLS timeseries endpoint.
+
+    Returns:
+        pd.DataFrame: One row per (series_id, year, period) with a value.
+            Periods with no released value ("-") are skipped, not zeroed.
+    """
     rows = []
     for series in body["Results"]["series"]:
         series_id = series["seriesID"]
@@ -82,6 +104,12 @@ def _parse_response(body: dict) -> pd.DataFrame:
 
 
 def main(start_year: int, end_year: int) -> None:
+    """Fetch, validate, and land the CPI monthly series to Bronze.
+
+    Args:
+        start_year (int): First year of the requested window, inclusive.
+        end_year (int): Last year of the requested window, inclusive.
+    """
     run_id = str(uuid.uuid4())
 
     logger.info("Fetching CPI series %s for %s-%s | run_id=%s", list(SERIES_IDS), start_year, end_year, run_id)

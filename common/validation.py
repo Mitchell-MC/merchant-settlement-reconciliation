@@ -46,6 +46,12 @@ class Violation:
     sample: str | None = None
 
     def as_alert(self) -> str:
+        """Render this violation as a single greppable, alert-channel-ready line.
+
+        Returns:
+            str: "DATA CONTRACT VIOLATION | ..." line naming table, column,
+                problem, expected/actual type, and an offending sample.
+        """
         return (
             f"DATA CONTRACT VIOLATION | table={self.table} | column={self.column} "
             f"| problem={self.problem} | expected={self.expected} "
@@ -63,6 +69,22 @@ def _first_nonconforming_numeric(series: pd.Series) -> str | None:
 
 
 def _check_column(df: pd.DataFrame, table: str, column: str, expected: str) -> Violation | None:
+    """Check a single column against its declared expected kind.
+
+    Args:
+        df (pd.DataFrame): Frame containing the column.
+        table (str): Table name, used only for the resulting Violation.
+        column (str): Column to check.
+        expected (str): Declared kind: "numeric", "int", "float", "datetime",
+            or "string".
+
+    Returns:
+        Violation | None: A Violation if the column is missing or its dtype
+            doesn't match expected; None if it conforms.
+
+    Raises:
+        ValueError: If expected is not one of the recognized kinds.
+    """
     if column not in df.columns:
         return Violation(table, column, "missing_column", expected, actual="<absent>")
 

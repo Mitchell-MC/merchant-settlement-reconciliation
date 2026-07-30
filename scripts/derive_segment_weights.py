@@ -51,6 +51,12 @@ STATE_TO_REGION = {s: r for r, states in REGION_STATES.items() for s in states}
 
 
 def main() -> None:
+    """Derive industry/region/employer-size weights from the CBP Bronze table.
+
+    Reads data/bronze/cbp_establishments/ (produced by ingestion/cbp_ingest.py)
+    and prints new SegmentWeights dict literals to stdout for manual review
+    and paste into data_generation/config.py; does not write any file.
+    """
     df = pd.read_parquet(PROJECT_ROOT / "data" / "bronze" / "cbp_establishments" / "cbp_establishments.parquet")
 
     df["industry"] = df["naics_code"].map(NAICS_TO_INDUSTRY)

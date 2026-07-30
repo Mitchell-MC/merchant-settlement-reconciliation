@@ -59,6 +59,18 @@ NUMERIC_COLUMNS = ["emp", "qp1", "ap", "est"] + list(SIZE_CLASS_COLUMNS)
 
 
 def _download(url: str, dest: Path) -> Path:
+    """Download a file to dest, creating parent directories as needed.
+
+    Args:
+        url (str): URL to fetch.
+        dest (Path): Local path to write the response body to.
+
+    Returns:
+        Path: dest, for chaining.
+
+    Raises:
+        requests.HTTPError: If the response status indicates failure.
+    """
     dest.parent.mkdir(parents=True, exist_ok=True)
     resp = requests.get(url, timeout=120)
     resp.raise_for_status()
@@ -67,6 +79,17 @@ def _download(url: str, dest: Path) -> Path:
 
 
 def _is_target_sector_row(naics: str, digits: int) -> bool:
+    """Check whether a raw NAICS code row is at the requested aggregation level.
+
+    Args:
+        naics (str): Raw NAICS code as it appears in the CBP file, padded
+            to 6 characters with dashes/slashes to denote aggregation level.
+        digits (int): Target aggregation level, e.g. 2 for sector-level rows.
+
+    Returns:
+        bool: True if naics is padded to exactly digits significant
+            characters.
+    """
     # CBP pads codes to 6 chars with dashes/slashes to denote aggregation
     # level, e.g. "11----" is the 2-digit sector total for NAICS 11.
     significant = naics.rstrip("-/")
@@ -74,6 +97,16 @@ def _is_target_sector_row(naics: str, digits: int) -> bool:
 
 
 def _parse_csv(zip_path: Path, naics_digits: int) -> pd.DataFrame:
+    """Extract and normalize the CBP county establishment file.
+
+    Args:
+        zip_path (Path): Path to the downloaded CBP ZIP archive.
+        naics_digits (int): NAICS aggregation level to filter rows to.
+
+    Returns:
+        pd.DataFrame: Rows at the requested NAICS grain, with renamed
+            columns and "N" (suppressed) values coerced to NaN.
+    """
     with zipfile.ZipFile(zip_path) as zf:
         inner_name = [n for n in zf.namelist() if n.endswith(".txt")][0]
         with zf.open(inner_name) as f:
@@ -98,6 +131,13 @@ def _parse_csv(zip_path: Path, naics_digits: int) -> pd.DataFrame:
 
 
 def main(url: str = DEFAULT_URL, naics_digits: int = 2) -> None:
+    """Download, parse, and land the CBP county establishment file to Bronze.
+
+    Args:
+        url (str): CBP county-level ZIP file URL to download.
+        naics_digits (int): NAICS aggregation level to keep, e.g. 2 for
+            sector-level rows.
+    """
     run_id = str(uuid.uuid4())
     zip_path = Path(__file__).resolve().parent / "_downloads" / "cbp23co.zip"
 
