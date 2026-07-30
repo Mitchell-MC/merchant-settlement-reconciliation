@@ -25,8 +25,15 @@ claimed_postings as (
     -- Both true matches and best-effort diagnostic candidates on open
     -- breaks count as "claimed" -- a duplicate is only interesting when
     -- it's sitting completely outside any reconciliation story.
-    select settlement_batch_id, f.value::string as posting_id
+    -- Grouped down to one row per posting_id: a diagnostic candidate can be
+    -- listed against more than one open break's matched_posting_ids, and
+    -- without this the final join below fans out -- one output row per
+    -- settlement_batch_id the posting happens to be associated with,
+    -- instead of one per unclaimed posting (breaks this model's
+    -- unclaimed_posting_id uniqueness contract in _silver__models.yml).
+    select f.value::string as posting_id, min(settlement_batch_id) as settlement_batch_id
     from matches, lateral flatten(input => matched_posting_ids) f
+    group by f.value::string
 ),
 
 unclaimed as (

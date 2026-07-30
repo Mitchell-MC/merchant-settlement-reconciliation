@@ -182,9 +182,17 @@ sources:
           SA (see docs/source_contracts/cpi.md). Grain: (series_id, year, period).
         # Monthly BLS release, ~2wk lag -- warn only past 45 days, never
         # error (macro enrichment must not block operational reconciliation),
-        # matching docs/non_functional_targets.md.
+        # matching docs/non_functional_targets.md. error_after must be set
+        # explicitly here: dbt merges freshness config key-by-key, so leaving
+        # it unset does NOT disable it -- it silently inherits the bronze
+        # source's operational default (error_after: 50 hours), which turned
+        # a "never error" macro table into a hard CI failure the moment this
+        # table's data crossed 50 hours old (which is expected/by-design for
+        # a monthly release). Set far past warn_after so it never fires in
+        # practice while still acting as a final backstop.
         freshness:
           warn_after: {count: 45, period: day}
+          error_after: {count: 90, period: day}
         tests:
           - dbt_utils.unique_combination_of_columns:
               combination_of_columns: [series_id, year, period]
@@ -208,9 +216,13 @@ sources:
           Grain: (series_id, observation_date).
         # Monthly release -- warn only past 45 days, never error (matches
         # cpi_monthly's policy: macro enrichment must not block operational
-        # reconciliation), per docs/non_functional_targets.md.
+        # reconciliation), per docs/non_functional_targets.md. error_after
+        # must be set explicitly -- see the identical note on cpi_monthly
+        # above; omitting it silently inherits the bronze source's 50-hour
+        # operational default instead of disabling it.
         freshness:
           warn_after: {count: 45, period: day}
+          error_after: {count: 90, period: day}
         tests:
           - dbt_utils.unique_combination_of_columns:
               combination_of_columns: [series_id, observation_date]
