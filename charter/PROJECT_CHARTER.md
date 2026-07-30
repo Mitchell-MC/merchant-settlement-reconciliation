@@ -59,7 +59,7 @@ Question 7 is deliberately the only one not backed by a KPI-contract entry: it i
 
 **Out of scope:**
 - Real confidential processor/bank data feeds (everything is synthetic, by design, to keep the project fully self-contained and shareable).
-- Full enterprise IAM federation (SSO/SCIM) — RBAC is modeled at the Databricks Unity Catalog level only.
+- Full enterprise IAM federation (SSO/SCIM) — RBAC is modeled at the warehouse level only (originally Unity Catalog, now Snowflake account roles — see [rbac_access_matrix.md](../docs/rbac_access_matrix.md)), not through an identity provider.
 - True real-time stream processing — this is a batch reconciliation platform by design (see Scope boundaries above).
 
 ## 5. Skills demonstrated

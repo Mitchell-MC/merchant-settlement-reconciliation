@@ -20,9 +20,9 @@ After merge (CD pipeline, see `.github/workflows/cd.yml`):
 ## Rollback playbook
 
 **If a bad model/test change reaches `main` before the daily job runs:**
-1. Pause the job immediately: `databricks jobs update --json '{"job_id":376440490795606,"new_settings":{"schedule":{"quartz_cron_expression":"0 0 6 * * ?","timezone_id":"America/New_York","pause_status":"PAUSED"}}}'` — stops the bad code from ever executing on schedule. (With `--json` the CLI takes `job_id` inside the body, not as a flag/positional; the schedule object is replaced wholesale, so include cron/timezone, not just `pause_status`.)
+1. Pause the job immediately: `gh variable set SNOWFLAKE_DAILY_ENABLED --body "false"` — stops the bad code from ever executing on the next scheduled run (`.github/workflows/snowflake_daily.yml`'s scheduled trigger is a no-op unless this repo variable is `"true"`; `workflow_dispatch` still works for a deliberate manual run).
 2. `git revert` the bad commit on `main`, open a PR, let CI re-validate.
-3. Re-run `cd.yml` (or push the revert) to re-sync the corrected project and re-approve `activate-schedule`.
+3. Re-run `cd.yml` (or push the revert) to re-validate the corrected project and re-approve `activate-schedule`, which flips `SNOWFLAKE_DAILY_ENABLED` back to `"true"`.
 
 **If a bad run already published to Gold:**
 1. Gold tables are `materialized='table'` (full rebuild each run, not incremental) — the fix is to revert the code and re-run `dbt build`, which fully replaces the bad Gold tables in place. There's no partial-state cleanup needed because there's no partial state; each run is a complete, self-consistent snapshot.

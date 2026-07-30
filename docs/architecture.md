@@ -97,7 +97,7 @@ This platform was originally built on Databricks/Unity Catalog and retargeted to
 | 4 — Medallion + reconciliation | [transform/](../transform/) |
 | 5 — Data quality/observability | `transform/tests/`, `gold.fct_exception_queue`, `ops.*` |
 | 6 — Governance | [docs/rbac_access_matrix.md](rbac_access_matrix.md), [docs/data_governance.md](data_governance.md) |
-| 7 — IaC | [infra/](../infra/) |
+| 7 — IaC | [infra_snowflake/](../infra_snowflake/) (originally `infra/` for Databricks, removed when that stack was retired — see below) |
 | 8 — CI/CD | [.github/workflows/](../.github/workflows/), [docs/release_runbook.md](release_runbook.md) |
 | 9 — BI + packaging | [bi/](../bi/), this document, [docs/executive_summary.md](executive_summary.md) |
 | Snowflake retarget | [infra_snowflake/](../infra_snowflake/), [docs/snowflake_migration_plan.md](snowflake_migration_plan.md), [scripts/load_bronze_to_snowflake.py](../scripts/load_bronze_to_snowflake.py) |

@@ -6,7 +6,7 @@ This documents a real, verified retarget of the platform onto Snowflake, run in 
 
 Snowflake for Bronze/Silver/Gold/Ops (`MERCHANT_RECON_PROJECT_DEV`, four schemas, mirroring the Unity Catalog layout) → dbt Core run from GitHub Actions (`snowflake_daily.yml`, no Databricks-Job equivalent exists in Snowflake Terraform) → Power BI connected directly to Snowflake. Bronze lands through an **internal Snowflake stage**, not S3 — a deliberate simplification from the original sketch (S3 + storage integration), chosen to avoid provisioning new AWS IAM/bucket infrastructure for a single-environment portfolio project. See [infra_snowflake/README.md](../infra_snowflake/README.md) for the full stack.
 
-`infra/` (Databricks) and `infra_snowflake/` (Snowflake) are two fully separate Terraform stacks, no shared state, so a mistake in one can never touch the other.
+`infra/` (Databricks) and `infra_snowflake/` (Snowflake) were two fully separate Terraform stacks during the parallel-run period, no shared state, so a mistake in one could never touch the other. `infra/` was removed once cutover completed and Databricks was retired (2026-07-25) — `infra_snowflake/` is now the only IaC stack.
 
 ## What was built
 

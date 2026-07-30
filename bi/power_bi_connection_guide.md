@@ -1,27 +1,31 @@
 # Power BI Connection Guide
 
-**Status: real Power BI Project source exists, not yet opened/rendered.** [`MeridianPayExecutive.pbip`](MeridianPayExecutive.pbip) (with `MeridianPayExecutive.SemanticModel/` and `MeridianPayExecutive.Report/`) is a real Power BI Project — TMDL semantic model (all 7 tables below, the 3 relationships, and all 7 DAX measures, generated directly from the actual Gold/Silver dbt model columns, not hand-guessed) plus a 2-page report shell wired to it. It was authored as text/TMDL/JSON, not built by driving Power BI Desktop's GUI (no GUI automation available), so **it has not actually been opened in Desktop or confirmed to load/refresh against the live Databricks warehouse** — treat first-open as the remaining verification step, not a formality. If Desktop reports an error on open, that's real signal, not a false alarm — report it back and it can be fixed from there. The [live dashboard artifact](executive_dashboard.html) remains the verified, working BI deliverable regardless of how the `.pbip` opens.
+**Status: real Power BI Project source exists, not yet opened/rendered.** [`MeridianPayExecutive.pbip`](MeridianPayExecutive.pbip) (with `MeridianPayExecutive.SemanticModel/` and `MeridianPayExecutive.Report/`) is a real Power BI Project — TMDL semantic model (all 7 tables below, the 3 relationships, and all 7 DAX measures, generated directly from the actual Gold/Silver dbt model columns, not hand-guessed) plus a 2-page report shell wired to it. It was authored as text/TMDL/JSON, not built by driving Power BI Desktop's GUI (no GUI automation available), so **it has not actually been opened in Desktop or confirmed to load/refresh against the live Snowflake warehouse** — treat first-open as the remaining verification step, not a formality. If Desktop reports an error on open, that's real signal, not a false alarm — report it back and it can be fixed from there. The [live dashboard artifact](executive_dashboard.html) remains the verified, working BI deliverable regardless of how the `.pbip` opens.
 
-**To open:** double-click `MeridianPayExecutive.pbip` in Power BI Desktop. It should prompt for Databricks OAuth sign-in (same RBAC groups as below) and load the model; the two report pages start blank — the DAX measures and star schema are already there, so building the visuals described under "Report pages" below is drag-and-drop from that point, no data modeling required.
+**Snowflake is the live platform** (Databricks was retired 2026-07-25 — see [snowflake_migration_plan.md](../docs/snowflake_migration_plan.md)); the Databricks connection steps below are kept as a historical reference for the parallel-run period and are no longer connectable (`dbc-08add949-9c19.cloud.databricks.com` no longer exists).
 
-## Connection (Databricks)
+**To open:** double-click `MeridianPayExecutive.pbip` in Power BI Desktop. It should prompt for Snowflake sign-in (same RBAC roles as below) and load the model; the two report pages start blank — the DAX measures and star schema are already there, so building the visuals described under "Report pages" below is drag-and-drop from that point, no data modeling required.
 
-1. **Get Data → Databricks** (built-in connector, no driver install needed in recent Power BI Desktop versions).
-2. Server hostname: `dbc-08add949-9c19.cloud.databricks.com`
-3. HTTP path: `/sql/1.0/warehouses/59901b31d31db40a`
-4. Data Connectivity mode: **DirectQuery** for the executive page (numbers should reflect the latest completed `dbt build`, not a stale import), or **Import** for the ops drill-down page if query performance on `fct_exception_queue` matters more than freshness — a hybrid composite model is the production-realistic choice.
-5. Authentication: Azure AD / OAuth — sign in as a member of one of the [RBAC groups](../docs/rbac_access_matrix.md) (`recon_treasury_viewers` or `recon_bi_consumers` for a report author who shouldn't see raw Bronze/Silver).
+## Connection (Snowflake — live platform)
 
-## Connection (Snowflake, parallel-run alternative)
-
-Same semantic model, relationships, DAX, and report pages below — only the connector and its account/role/warehouse settings change. Like the Databricks `.pbip` above, this has not been opened in Power BI Desktop in this environment (no GUI automation available) — treat first-open as the remaining verification step for this path too.
+Like the Databricks `.pbip` history below, this has not been opened in Power BI Desktop in this environment (no GUI automation available) — treat first-open as the remaining verification step for this path.
 
 1. **Get Data → Snowflake** (built-in connector, no driver install needed in recent Power BI Desktop versions).
 2. Server: `QOZWHHP-ZLC22574.snowflakecomputing.com` (or the account identifier form `QOZWHHP-ZLC22574`, depending on connector version).
 3. Warehouse: `BI_WH` (deliberately separate from `TRANSFORM_WH` — see [infra_snowflake/README.md](../infra_snowflake/README.md) — so a Power BI refresh can never compete with a running `dbt build` for compute).
 4. Database / schema: `MERCHANT_RECON_PROJECT_DEV` / `GOLD` (and `SILVER` for the two dimension tables).
-5. Data Connectivity mode: same DirectQuery/Import split as the Databricks connection above.
+5. Data Connectivity mode: **DirectQuery** for the executive page (numbers should reflect the latest completed `dbt build`, not a stale import), or **Import** for the ops drill-down page if query performance on `fct_exception_queue` matters more than freshness — a hybrid composite model is the production-realistic choice.
 6. Authentication: Snowflake supports username/password, key-pair, or SSO depending on connector version and account setup — sign in as (or map an RLS role to) one of the four [RBAC roles](../docs/rbac_access_matrix.md) (`RECON_TREASURY_VIEWERS` or `RECON_BI_CONSUMERS` for a report author who shouldn't see raw Bronze/Silver).
+
+## Connection (Databricks — historical, retired 2026-07-25)
+
+> Kept as a reference for how the parallel-run period was connected before cutover — see [snowflake_migration_plan.md](../docs/snowflake_migration_plan.md). Not connectable today: the workspace (`dbc-08add949-9c19.cloud.databricks.com`) no longer exists.
+
+1. **Get Data → Databricks**.
+2. Server hostname: `dbc-08add949-9c19.cloud.databricks.com`
+3. HTTP path: `/sql/1.0/warehouses/59901b31d31db40a`
+4. Data Connectivity mode: same DirectQuery/Import split as the Snowflake connection above.
+5. Authentication: Azure AD / OAuth — sign in as a member of one of the RBAC groups (`recon_treasury_viewers` or `recon_bi_consumers`).
 
 ## Tables to import
 

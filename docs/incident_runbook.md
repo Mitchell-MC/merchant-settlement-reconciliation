@@ -32,10 +32,9 @@ Containment comes *before* the fix. The goal is to stop consumers from trusting 
 
 1. **Stop it getting worse.** If a run is actively writing suspect data, pause the daily job immediately (same command as the rollback playbook):
    ```bash
-   databricks jobs update --job-id <daily_reconciliation_job_id> \
-     --json '{"new_settings": {"schedule": {"pause_status": "PAUSED"}}}'
+   gh variable set SNOWFLAKE_DAILY_ENABLED --body "false"
    ```
-   The job id is a Terraform output (`daily_reconciliation_job_id`).
+   This flips the repo variable that `.github/workflows/snowflake_daily.yml`'s scheduled trigger is gated on — the next scheduled run becomes a no-op. To also stop an in-flight run, cancel it directly: `gh run cancel <run-id>` (or via the Actions UI). `workflow_dispatch` still allows a manual re-run regardless of the variable, for controlled recovery testing.
 2. **Flag the served surface as unreliable — don't silently leave it up.** The honest move is to make the staleness *visible* to consumers rather than let them keep reading a dashboard that looks fine. Options, cheapest first: post a banner/note on `bi/executive_dashboard.html`, notify the `treasury_viewers` / `finance_analysts` / `bi_consumers` channels that Gold as-of `<date>` is under review, and — if the numbers are actively misleading — restrict the masked view or mark the affected `as_of_date` rows. Because Gold is `materialized='table'` (full snapshot per run, no partial state) the *previous good snapshot* is coherent; the danger is people mistaking a frozen snapshot for a current one.
 3. **Decide: kill vs. let finish.** If a run is mid-flight and its inputs are suspect, killing it is usually right — a full-refresh rebuild on the next good inputs is cheap and clean here, so there's little value in letting a bad run complete.
 
@@ -80,7 +79,7 @@ The verdict line to land: *a pipeline that can fail silently was never productio
 ### One-screen checklist
 
 1. **Scope** — `ops.pipeline_heartbeat` / `ops.dbt_run_telemetry` → which run last succeeded, how long the gap ran, which Gold surfaces + consumers are hit (Front 1 table).
-2. **Contain** — pause `daily_reconciliation_job_id`; flag the served Gold/dashboard as provisional; kill an in-flight bad run.
+2. **Contain** — set `SNOWFLAKE_DAILY_ENABLED` to `false`; flag the served Gold/dashboard as provisional; cancel an in-flight bad run.
 3. **Communicate** — first stakeholder update inside 15 min (what we know / don't / ETA); escalate by blast radius; fixed-cadence updates until all-clear.
 4. **Reconstruct** — follow [release_runbook.md](release_runbook.md) rollback/backfill; `dbt build --full-refresh`; re-validate vs. ground truth; post correction note with `_batch_id`s.
 5. **Verdict** — confirm the heartbeat/freshness/notification controls would now catch a recurrence; log where the gap still exists (external heartbeat, Snowflake parity, empty recipient lists) as follow-up work.

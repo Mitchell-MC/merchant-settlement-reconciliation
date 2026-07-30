@@ -1,5 +1,7 @@
 # Data Governance: Masking, Lineage, and Glossary
 
+**Snowflake is the live platform** (Databricks was retired 2026-07-25 — see [snowflake_migration_plan.md](snowflake_migration_plan.md)). The masking/lineage mechanisms below that reference Unity Catalog are kept as the original design reasoning; the "production hardening" and "automatic lineage" notes point to their Snowflake equivalents where noted.
+
 ## Masking assumptions
 
 Merchant identity (`merchant_id`, `business_name`) is treated as sensitive commercial information once it's tied to a payment break — which specific named merchant is having settlement problems, and for how much, is not something a wide internal BI audience needs to see to do trend analysis.
@@ -11,7 +13,7 @@ Merchant identity (`merchant_id`, `business_name`) is treated as sensitive comme
 | `break_amount` | Rounded to nearest $100 | `gold.vw_exception_queue_masked` |
 | `funding_cost_estimate` | Rounded to nearest $1 | `gold.vw_exception_queue_masked` |
 
-This is implemented as a dbt view (`transform/models/gold/vw_exception_queue_masked.sql`), not a runtime access-control feature (Unity Catalog row/column-level security via dynamic views or attribute-based policies could enforce the same masking automatically for any query against the base table — scoped out here in favor of a simpler "masked view is a separate, granted object" pattern; see [rbac_access_matrix.md](rbac_access_matrix.md) for which role gets which object). A production hardening pass would move to a UC row-filter/column-mask policy so masking can't be bypassed by querying the base table directly with elevated ad-hoc permissions.
+This is implemented as a dbt view (`transform/models/gold/vw_exception_queue_masked.sql`), not a runtime access-control feature — Unity Catalog row/column-level security (dynamic views or attribute-based policies) and Snowflake's equivalent (row access policies / masking policies) could both enforce the same masking automatically for any query against the base table; scoped out here in favor of a simpler "masked view is a separate, granted object" pattern (see [rbac_access_matrix.md](rbac_access_matrix.md) for which role gets which object). A production hardening pass on the live Snowflake platform would move to a Snowflake masking policy attached directly to `gold.fct_exception_queue`'s sensitive columns, so masking can't be bypassed by querying the base table directly with elevated ad-hoc permissions.
 
 Un-masked fields (`industry`, `region`, `risk_tier`, `aging_bucket`, `severity`, dates) are not treated as sensitive — they don't identify a specific merchant.
 
@@ -19,7 +21,7 @@ Un-masked fields (`industry`, `region`, `risk_tier`, `aging_bucket`, `severity`,
 
 Every Bronze row carries `_source_system`, `_ingestion_timestamp`, `_batch_id`, `_row_hash` (see `common/lineage.py`). This is the traceability backbone required by [non_functional_targets.md](non_functional_targets.md)'s auditability section: any Gold number can be traced back through Silver to the exact Bronze ingestion run that produced it via these columns, without needing external lineage tooling.
 
-Unity Catalog also captures **column-level lineage automatically** for every dbt-executed SQL statement (visible in the Catalog Explorer UI or via the `system.access.table_lineage` / `system.access.column_lineage` system tables) — this is a platform capability, not something this project builds, but it's the mechanism an auditor would actually click through in a real review: pick a number in `gold.fct_daily_cash_position`, follow the lineage graph backward through `int_reconciliation_matches` → `fct_settlement_batch` / `fct_bank_movement` → `bronze.settlement_batches` / `bronze.bank_movements`.
+On the live Snowflake platform, **`ACCESS_HISTORY` and `OBJECT_DEPENDENCIES`** (Account Usage schema views) capture object-level read/write lineage automatically for every query, including dbt's — the mechanism an auditor would actually click through in a real review today: pick a number in `gold.fct_daily_cash_position`, follow the lineage graph backward through `int_reconciliation_matches` → `fct_settlement_batch` / `fct_bank_movement` → `bronze.settlement_batches` / `bronze.bank_movements`. This is a platform capability, not something this project builds. (During the Databricks era, the equivalent was Unity Catalog's automatic column-level lineage via the Catalog Explorer UI or the `system.access.table_lineage` / `system.access.column_lineage` system tables — kept here as the original design reference, since the same manual trace path below applies on either platform.)
 
 **Manual trace path** (what the lineage graph encodes as a runbook step):
 1. Gold number in question → identify which Gold model column it came from (see [kpi_contract.md](kpi_contract.md) for the formula).

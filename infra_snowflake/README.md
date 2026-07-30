@@ -4,7 +4,9 @@ Terraform manages the Snowflake surface for this project's Snowflake retarget, r
 
 ## Why a separate directory instead of a second provider in `infra/`
 
-A dedicated `infra_snowflake/` directory with its own Terraform state means a mistake here (a bad `plan`, an accidental `destroy`) can never touch the live, working Databricks resources in `infra/`. The two stacks share no state, no provider config, and no resource addresses.
+> **Historical rationale.** `infra/` (the Databricks stack) was removed once cutover completed and Databricks was retired (2026-07-25) — this directory is now the only Terraform stack. Kept below because the reasoning for the split still explains why this directory exists rather than a second provider block bolted onto a single stack.
+
+A dedicated `infra_snowflake/` directory with its own Terraform state meant a mistake here (a bad `plan`, an accidental `destroy`) could never touch the live, working Databricks resources in `infra/` during the parallel-run period. The two stacks shared no state, no provider config, and no resource addresses.
 
 ## What's code-managed vs. manual
 

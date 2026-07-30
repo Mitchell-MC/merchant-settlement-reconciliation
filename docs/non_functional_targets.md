@@ -11,7 +11,7 @@ These are binding operational contracts, not aspirations. Phase 5 (data quality/
 | Gold marts (reconciliation, cash position, breaks) published | By 07:00 local time |
 | BI dashboards reflect new data | By 07:15 local time |
 
-If the 07:00 Gold publish SLA is missed, the run is flagged `SLA_BREACH` in telemetry and the prior day's Gold snapshot remains the served version (no partial/inconsistent publish — see [[kpi-contract]] point-in-time correctness rule).
+If the 07:00 Gold publish SLA is missed, the run is flagged `SLA_BREACH` in telemetry and the prior day's Gold snapshot remains the served version (no partial/inconsistent publish — see [kpi_contract.md](kpi_contract.md)'s point-in-time correctness rule).
 
 **Liveness / silent-failure detection (the run stopping entirely, not just running late).** The telemetry above is only written *when a run happens*, so it cannot detect a job that stops firing. That gap is closed by an independent **dead-man's-switch**: `transform/tests/assert_pipeline_not_silent.sql`, run on a separate 6-hourly schedule by `.github/workflows/snowflake_heartbeat.yml`, fails when no run has been logged within `pipeline_heartbeat_threshold_hours` (**26h** — the daily cadence plus a 2h grace window). Scheduling lives in GitHub Actions rather than Terraform because Snowflake has no dbt-job resource: `.github/workflows/snowflake_daily.yml` carries the freshness gate + a `timeout-minutes` ceiling + a failure-alert step, and the heartbeat workflow is the independently-scheduled watcher — both backed by the same shared `assert_pipeline_not_silent` test. When this liveness contract is breached, follow [docs/incident_runbook.md](incident_runbook.md).
 
