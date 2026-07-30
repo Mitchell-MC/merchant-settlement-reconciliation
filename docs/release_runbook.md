@@ -13,9 +13,10 @@ Before merging to `main`:
 
 After merge (CD pipeline, see `.github/workflows/cd.yml`):
 
-- [ ] `terraform-apply` job succeeded
-- [ ] `dbt-deploy` job succeeded (project synced to `/Shared/merchant_reconciliation/transform`, smoke-test `dbt build` passed against the live warehouse)
+- [ ] `preflight` job succeeded
+- [ ] `dbt-deploy` job succeeded (smoke-test `dbt build` passed against the live warehouse — there's no workspace-sync step; the repo checked out on the runner IS the deployed artifact, see `cd.yml`'s header comment)
 - [ ] `activate-schedule` approved by a reviewer on the `release` GitHub Environment — this is the deliberate, separate step that actually turns on the daily job; a green CD run through `dbt-deploy` does **not** by itself change what's scheduled to run tomorrow
+- [ ] Terraform apply, if infra changed, was run separately and locally (state is local, not in CI — see [infra_snowflake/README.md](../infra_snowflake/README.md))
 
 ## Rollback playbook
 
@@ -41,7 +42,7 @@ Use when Bronze data for a past date needs to be regenerated or re-ingested (e.g
 
 1. **Scope the backfill.** Identify the exact date range and which Bronze tables are affected. Bronze is append-only/immutable by policy (see [docs/non_functional_targets.md](non_functional_targets.md)) — a backfill lands *new* corrected rows with a new `_batch_id`, it does not edit existing Bronze rows in place.
 2. **Regenerate/re-ingest.** For synthetic data: `python data_generation/generate.py --seed <same seed> ...` reproduces byte-identical output for unaffected dates (determinism is the whole point — see the generator's seed contract), so a targeted fix only changes what actually needed to change. For macro sources: re-run the relevant `ingestion/*_ingest.py` script.
-3. **Land and verify Bronze.** Upload to the UC volume and `CREATE OR REPLACE TABLE ... AS SELECT * FROM read_files(...)` as usual (see the Bronze-loading commands in project history) — this replaces the whole Bronze table, which for our batch/table-per-run model is the correct behavior; a true incremental/partition-level backfill would need Bronze tables partitioned by ingestion date, which is a documented growth path, not implemented here (this project's Bronze tables are full-refresh, not append/merge, per the size of a full generator run being cheap enough that partial backfill isn't worth the added complexity yet).
+3. **Land and verify Bronze.** `python scripts/load_bronze_to_snowflake.py` — `PUT`s the regenerated files to the `BRONZE_LANDING` internal stage and runs `COPY INTO` per Bronze table (see [docs/architecture.md](architecture.md) for the stage/load diagram) — this replaces the whole Bronze table, which for our batch/table-per-run model is the correct behavior; a true incremental/partition-level backfill would need Bronze tables partitioned by ingestion date, which is a documented growth path, not implemented here (this project's Bronze tables are full-refresh, not append/merge, per the size of a full generator run being cheap enough that partial backfill isn't worth the added complexity yet).
 4. **Rebuild Silver/Gold.** `dbt build --full-refresh` from `transform/` — Silver/Gold are also `materialized='table'`, so this is a full, consistent rebuild, not a patch.
 5. **Re-validate against ground truth if synthetic data changed.** Re-run the ground-truth cross-tab validation query (see project history / `docs/` for the pattern) to confirm the reconciliation engine still classifies the corrected data as expected before trusting the new Gold numbers.
 6. **Document the correction.** Note the backfill in the PR description: what was wrong, what date range, what changed. There's no separate "backfill log" table in this build — the git history and `ops.dbt_run_telemetry` timestamps together are the audit trail.

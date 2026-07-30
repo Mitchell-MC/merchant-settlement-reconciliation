@@ -54,6 +54,20 @@ Tolerance and SLA parameters referenced here are defined in full in [non_functio
 - This is the operational health metric for the reconciliation engine itself — a falling match rate is an early warning of upstream data quality issues, independent of any single merchant's break.
 - **Owner:** Data/Analytics Engineering
 
+## 9. Duplicate Posting Exposure
+- **Grain:** one row per unclaimed bank posting (`unclaimed_posting_id`) that duplicates an already-claimed posting
+- **Formula:** bank postings sharing (`merchant_id`, `posting_date`, `amount`) with a posting already claimed by a true match or a best-effort diagnostic candidate, and not itself claimed by anything — real cash posted twice, not a settlement-batch-side break
+- **Severity:** `critical` when `amount >= 5000`, else `high` — same dollar bar as a critical break, since a duplicate payout is real cash out the door twice
+- **Source:** Gold `fct_duplicate_posting_exceptions` ← Silver `fct_duplicate_postings` ← `int_reconciliation_matches` + `fct_bank_movement`. Kept as its own mart rather than merged into `fct_exception_queue` because it has no `settlement_batch_id` — see [kpi_traceability.md](kpi_traceability.md#why-fct_duplicate_posting_exceptions-is-a-separate-mart)
+- **Owner:** Treasury Ops
+
+### Root cause hint (break triage classification)
+
+Every row in `fct_reconciliation_breaks` carries a `root_cause_hint` (`transform/models/silver/int_reconciliation_matches.sql`) — a heuristic, non-authoritative classification to speed triage, one of:
+- `delayed` — a same-merchant, in-tolerance posting arrived after the reconciliation window closed; a genuine late payout, not an unresolved break in the usual sense
+- `unmatched_closest_candidate` — an amount/timing mismatch on an identified posting within the window
+- `missing_posting` — no candidate posting found at all
+
 ## Cross-cutting rules
 
 - All dollar amounts are in USD, stored as `DECIMAL(18,2)`, never floating point.

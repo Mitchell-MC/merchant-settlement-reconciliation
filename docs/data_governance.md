@@ -29,6 +29,8 @@ On the live Snowflake platform, **`ACCESS_HISTORY` and `OBJECT_DEPENDENCIES`** (
 3. Silver model → the Bronze source table (`transform/models/bronze/_bronze__sources.yml`).
 4. Bronze row → `_batch_id` identifies the exact generator/ingestion run; `_ingestion_timestamp` gives when it landed.
 
+**Point-in-time correctness.** `dim_merchant` is current-state-only, so a merchant re-tiered after a break occurred would otherwise have that break silently reclassified under the new tier on every rebuild. A dbt snapshot (`transform/snapshots/dim_merchant_snapshot.sql`) captures SCD2 history on the mutable contract-term columns, and `fct_reconciliation_breaks` resolves `risk_tier` as-of `break_first_identified_date` rather than off current-state `dim_merchant` — an auditor re-running the trace path above against a historical break sees the tier that was true then, not today's.
+
 ## Business glossary (KPI-critical Gold metrics)
 
 The authoritative definitions live in [kpi_contract.md](kpi_contract.md) — this is a quick-reference index into it, the form an auditor or new analyst would actually want first.
@@ -44,7 +46,8 @@ The authoritative definitions live in [kpi_contract.md](kpi_contract.md) — thi
 | Funding Cost Estimate | Estimated cost of capital tied up by open breaks | [kpi_contract.md #7](kpi_contract.md#7-funding-cost-estimate) |
 | Reconciliation Match Rate | Straight-through rate — the engine's own health metric | [kpi_contract.md #8](kpi_contract.md#8-reconciliation-match-rate-straight-through-rate) |
 | Aging Bucket | `0-1`, `2-3`, `4-7`, `8-14`, `15+` business days | [kpi_contract.md #5](kpi_contract.md#5-break-aging) |
-| Root Cause Hint | `missing_posting` (no bank posting found) vs. `unmatched_closest_candidate` (amount/timing mismatch on an identified posting) | `transform/models/silver/int_reconciliation_matches.sql` |
-| Severity | `critical`/`high`/`low` per exception-queue triage rule | `transform/models/gold/fct_exception_queue.sql` |
+| Root Cause Hint | `delayed` (in-tolerance posting arrived after the window), `unmatched_closest_candidate` (amount/timing mismatch on an identified posting), or `missing_posting` (no candidate posting found) | [kpi_contract.md — root cause hint](kpi_contract.md#root-cause-hint-break-triage-classification) |
+| Severity | `critical`/`high`/`medium`/`low` per exception-queue triage rule (`fct_duplicate_posting_exceptions` uses a `critical`/`high` split on the same $5,000 threshold) | `transform/models/gold/fct_exception_queue.sql`, `transform/models/gold/fct_duplicate_posting_exceptions.sql` |
+| Duplicate Posting Exposure | Bank postings that duplicate an already-claimed posting — real cash posted twice | [kpi_contract.md #9](kpi_contract.md#9-duplicate-posting-exposure) |
 
 Changing any KPI's formula requires updating [kpi_contract.md](kpi_contract.md) in the same PR as the model change (see that doc's cross-cutting rules) — this glossary should never define a term differently than the contract.

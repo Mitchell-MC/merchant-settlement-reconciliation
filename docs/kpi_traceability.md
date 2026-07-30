@@ -33,6 +33,15 @@ Exact match across all three layers — no silent row loss, no double-counting, 
 | Cash-at-Risk | [kpi_contract.md #6](kpi_contract.md#6-cash-at-risk) | `gold.fct_reconciliation_breaks` ← `seeds/dim_finance_assumptions_seed.csv` (threshold) |
 | Funding Cost Estimate | [kpi_contract.md #7](kpi_contract.md#7-funding-cost-estimate) | `gold.fct_reconciliation_breaks` ← `seeds/dim_finance_assumptions_seed.csv` (cost-of-funds rate) |
 | Reconciliation Match Rate | [kpi_contract.md #8](kpi_contract.md#8-reconciliation-match-rate-straight-through-rate) | `gold.fct_daily_cash_position`, same engine output as everything above |
+| Duplicate Posting Exposure | [kpi_contract.md #9](kpi_contract.md#9-duplicate-posting-exposure) | `gold.fct_duplicate_posting_exceptions` ← `silver.fct_duplicate_postings` ← `int_reconciliation_matches` + `silver.fct_bank_movement` |
+
+## Why `fct_duplicate_posting_exceptions` is a separate mart
+
+`gold.fct_duplicate_posting_exceptions` traces through `silver.fct_duplicate_postings` ← `int_reconciliation_matches` + `silver.fct_bank_movement`, not through `fct_exception_queue`. It surfaces bank postings that duplicate an already-claimed posting (same merchant/date/amount, real cash posted twice) — a bank-movement-side anomaly, not a settlement-batch-side break.
+
+It can't be merged into `fct_exception_queue` for a grain reason: that queue's uniqueness contract is `settlement_batch_id`, and a duplicate posting doesn't have one — it duplicates a posting that a real batch already claimed, so there's no batch to key it to. Folding it in would either break that uniqueness test or force a fake batch id onto a row that isn't a batch. Keeping it a separate mart lets each surface keep an honest grain: `fct_exception_queue` is "one row per open settlement-batch break," `fct_duplicate_posting_exceptions` is "one row per unclaimed duplicate posting."
+
+Severity uses the same $5,000 critical threshold as `fct_exception_queue` (`case when amount >= 5000 then 'critical' else 'high'` — see `transform/models/gold/fct_duplicate_posting_exceptions.sql`): a duplicate payout is real cash out the door twice, so it's held to the same dollar bar as a critical break, not a lesser one.
 
 ## Reproducing this yourself
 

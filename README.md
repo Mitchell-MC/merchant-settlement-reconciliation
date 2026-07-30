@@ -26,8 +26,8 @@ FRPS / CBP / CPI / FRED (public macro reference data)     Synthetic operational 
                               |
                     Gold    (cash position, breaks + aging + risk tier as-of break date,
                               exception queue with persisted analyst triage state,
-                              merchant exception trends, settlement SLA, payment mix,
-                              funding cost — star schema)
+                              duplicate-posting exceptions, merchant exception trends,
+                              settlement SLA, payment mix, funding cost — star schema)
                               |
                     Executive dashboard (live) + Power BI (documented)
 

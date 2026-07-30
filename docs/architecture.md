@@ -29,7 +29,7 @@ flowchart TB
         SFBRONZE[("Bronze<br/>raw, immutable, lineage metadata")]
         SFSILVER[("Silver<br/>conformed entities")]
         SFENGINE{"Reconciliation engine<br/>int_reconciliation_matches<br/>date-window + amount-tolerance"}
-        SFGOLD[("Gold<br/>cash position · breaks · exception queue<br/>funding cost · merchant SLA<br/>payment mix · merchant trends")]
+        SFGOLD[("Gold<br/>cash position · breaks · exception queue<br/>funding cost · merchant SLA<br/>payment mix · merchant trends · duplicate postings")]
         SFOPS[("ops<br/>dbt_run_telemetry · run_summary")]
     end
 

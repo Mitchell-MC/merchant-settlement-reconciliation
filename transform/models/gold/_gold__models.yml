@@ -77,7 +77,13 @@ models:
         description: KPI #7. break_amount * days outstanding * cost-of-funds rate / 365.
         data_type: number(18,2)
       - name: root_cause_hint
-        description: Heuristic classification (timing vs. amount vs. missing posting) to speed triage. Not authoritative.
+        description: >
+          Heuristic classification to speed triage, not authoritative:
+          'delayed' (a same-merchant, in-tolerance posting arrived after the
+          reconciliation window), 'unmatched_closest_candidate' (amount/timing
+          mismatch on an identified posting within the window), or
+          'missing_posting' (no candidate posting found at all). See
+          transform/models/silver/int_reconciliation_matches.sql.
         data_type: varchar
 
   - name: fct_daily_cash_position
