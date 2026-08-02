@@ -10,6 +10,36 @@ models:
     columns:
       - name: merchant_id
         tests: [unique, not_null]
+      # Silver is the enforcement/rejection gate for these categorical
+      # attributes -- default (error) severity, unlike the matching
+      # detection-only (severity: warn) tests on bronze.merchants in
+      # _bronze__sources.yml. An unrecognised value here fails the build
+      # rather than silently flowing into risk_tier-driven fee/reserve logic.
+      - name: industry
+        tests:
+          - accepted_values:
+              values: ['health_wellness', 'professional_services', 'restaurant_food_service',
+                'retail', 'auto_services', 'home_trade_services', 'other', 'ecommerce_online_retail']
+      - name: mcc
+        tests:
+          - accepted_values:
+              values: ['8099', '8742', '5812', '5311', '7538', '1731', '5999', '5964']
+      - name: region
+        tests:
+          - accepted_values:
+              values: ['South', 'West', 'Midwest', 'Northeast']
+      - name: employer_size_class
+        tests:
+          - accepted_values:
+              values: ['1-4', '5-9', '10-19', '20-49', '50-99', '100-249', '250-499', '500+']
+      - name: risk_tier
+        tests:
+          - accepted_values:
+              values: ['standard', 'elevated', 'high']
+      - name: settlement_speed_business_days
+        tests:
+          - accepted_values:
+              values: [1, 2]
 
   - name: dim_merchant_history
     description: >
@@ -25,7 +55,31 @@ models:
         tests: [not_null]
       - name: valid_to
         tests: [not_null]
+      - name: industry
+        tests:
+          - accepted_values:
+              values: ['health_wellness', 'professional_services', 'restaurant_food_service',
+                'retail', 'auto_services', 'home_trade_services', 'other', 'ecommerce_online_retail']
+      - name: mcc
+        tests:
+          - accepted_values:
+              values: ['8099', '8742', '5812', '5311', '7538', '1731', '5999', '5964']
+      - name: region
+        tests:
+          - accepted_values:
+              values: ['South', 'West', 'Midwest', 'Northeast']
+      - name: employer_size_class
+        tests:
+          - accepted_values:
+              values: ['1-4', '5-9', '10-19', '20-49', '50-99', '100-249', '250-499', '500+']
       - name: risk_tier
+        tests:
+          - accepted_values:
+              values: ['standard', 'elevated', 'high']
+      - name: settlement_speed_business_days
+        tests:
+          - accepted_values:
+              values: [1, 2]
 
   - name: dim_date
     description: Date spine with US Federal Reserve holiday calendar and business-day sequencing.
@@ -37,7 +91,11 @@ models:
     description: Payment channel dimension.
     columns:
       - name: payment_channel
-        tests: [unique, not_null]
+        tests:
+          - unique
+          - not_null
+          - accepted_values:
+              values: ['card_present', 'ecommerce']
       # 'Other' is the catch-all in the model's case expression -- if a new
       # channel appears upstream it lands there rather than erroring, so this
       # test is what makes that fallback visible instead of silent.
@@ -58,6 +116,14 @@ models:
           - relationships:
               to: ref('dim_merchant')
               field: merchant_id
+      - name: transaction_type
+        tests:
+          - accepted_values:
+              values: ['sale', 'refund']
+      - name: payment_channel
+        tests:
+          - accepted_values:
+              values: ['card_present', 'ecommerce']
 
   - name: fct_settlement_batch
     description: Conformed settlement batch fact -- the "expected settlement" side of reconciliation.
@@ -136,6 +202,10 @@ models:
     columns:
       - name: adjustment_id
         tests: [unique, not_null]
+      - name: reason_code
+        tests:
+          - accepted_values:
+              values: ['chargeback', 'customer_return', 'billing_dispute']
 
   - name: int_reconciliation_matches
     description: >

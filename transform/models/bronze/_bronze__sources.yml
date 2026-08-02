@@ -32,16 +32,47 @@ sources:
             description: Primary key.
             tests: [unique, not_null]
           - name: business_name
+          # Bronze only detects deviations here (severity: warn) -- it logs an
+          # unexpected value without failing the build, since Bronze is raw/
+          # append-only by contract (see common/validation.py). Silver is the
+          # hard-reject gate: dim_merchant/dim_merchant_history carry the
+          # matching accepted_values tests at default (error) severity in
+          # _silver__models.yml.
           - name: industry
+            tests:
+              - accepted_values:
+                  values: ['health_wellness', 'professional_services', 'restaurant_food_service',
+                    'retail', 'auto_services', 'home_trade_services', 'other', 'ecommerce_online_retail']
+                  config: {severity: warn}
           - name: mcc
+            tests:
+              - accepted_values:
+                  values: ['8099', '8742', '5812', '5311', '7538', '1731', '5999', '5964']
+                  config: {severity: warn}
           - name: region
+            tests:
+              - accepted_values:
+                  values: ['South', 'West', 'Midwest', 'Northeast']
+                  config: {severity: warn}
           - name: state
           - name: employer_size_class
+            tests:
+              - accepted_values:
+                  values: ['1-4', '5-9', '10-19', '20-49', '50-99', '100-249', '250-499', '500+']
+                  config: {severity: warn}
           - name: risk_tier
+            tests:
+              - accepted_values:
+                  values: ['standard', 'elevated', 'high']
+                  config: {severity: warn}
           - name: onboarding_date
           - name: reserve_rate_bps
           - name: processing_fee_bps
           - name: settlement_speed_business_days
+            tests:
+              - accepted_values:
+                  values: [1, 2]
+                  config: {severity: warn}
           - name: avg_ticket_usd
           - name: daily_txn_volume_multiplier
 
@@ -62,10 +93,12 @@ sources:
             tests:
               - accepted_values:
                   values: ['sale', 'refund']
+                  config: {severity: warn}
           - name: channel
             tests:
               - accepted_values:
                   values: ['card_present', 'ecommerce']
+                  config: {severity: warn}
           - name: amount
 
       - name: settlement_batches
@@ -102,6 +135,7 @@ sources:
             tests:
               - accepted_values:
                   values: ['hold', 'release']
+                  config: {severity: warn}
           - name: event_date
           - name: amount
           - name: related_date
@@ -120,6 +154,7 @@ sources:
             tests:
               - accepted_values:
                   values: ['chargeback', 'customer_return', 'billing_dispute']
+                  config: {severity: warn}
 
       - name: bank_movements
         description: >
